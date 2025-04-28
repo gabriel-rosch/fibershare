@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { SupabaseCTOPortService } from "@/lib/services/supabase/cto-port-service"
 // Alterar esta linha para importar a instância em vez da classe
 import { authService } from "@/lib/services/supabase/auth-service"
+import { CTOPortService } from "@/lib/services/supabase/cto-port-service"
 
 // GET - Obter detalhes de uma porta específica
 export async function GET(request: Request, { params }: { params: { id: string } }) {
@@ -50,12 +51,15 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     }
 
     // Atualizar o preço da porta
-    const updatedPort = await SupabaseCTOPortService.updatePortPrice(params.id, price)
+    const updatedPort = await CTOPortService.updatePortPrice(params.id, price)
 
     return NextResponse.json(updatedPort)
   } catch (error: any) {
     console.error(`Erro ao atualizar preço da porta ${params.id}:`, error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json(
+      { error: error.message || "Erro ao atualizar preço da porta" },
+      { status: 500 }
+    )
   }
 }
 
@@ -83,12 +87,21 @@ export async function PUT(request: Request, { params }: { params: { id: string }
       return NextResponse.json({ error: "Status inválido" }, { status: 400 })
     }
 
-    // Atualizar o status da porta
-    const updatedPort = await SupabaseCTOPortService.updatePortStatus(params.id, body.status)
+    let updatedPort
+    if (body.status === "reserved") {
+      updatedPort = await CTOPortService.reservePort(params.id)
+    } else if (body.status === "available") {
+      updatedPort = await CTOPortService.releasePort(params.id)
+    } else {
+      updatedPort = await CTOPortService.updatePortStatus(params.id, body.status)
+    }
 
     return NextResponse.json(updatedPort)
   } catch (error: any) {
     console.error(`Erro ao atualizar status da porta ${params.id}:`, error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json(
+      { error: error.message || "Erro ao atualizar porta" },
+      { status: 500 }
+    )
   }
 }

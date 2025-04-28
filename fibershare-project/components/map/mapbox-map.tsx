@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from "react"
 import mapboxgl from "mapbox-gl"
 import "mapbox-gl/dist/mapbox-gl.css"
-import type { CTO } from "@/lib/utils/cto-utils"
+import type { CTO } from "@/lib/interfaces/service-interfaces"
+import { ctoPortService } from "@/lib/services/supabase/cto-port-service"
 
 export interface MapboxMapProps {
   mapboxToken: string
@@ -27,22 +28,33 @@ export default function MapboxMap({
   const markersRef = useRef<{ [key: string]: mapboxgl.Marker }>({})
   const [is3DMode, setIs3DMode] = useState(false)
 
+  // Adicionar log para debug das CTOs
+  useEffect(() => {
+    console.log('CTOs recebidas:', ctos)
+  }, [ctos])
+
+  // Função para converter coordenadas do formato {lat, lng} para [lng, lat]
+  const convertCoordinates = (coordinates: any): [number, number] => {
+    if (!coordinates) return [-49.0771, -26.9187] // Coordenadas padrão
+    return [coordinates.lng, coordinates.lat]
+  }
+
   // Inicializar o mapa
   useEffect(() => {
-    if (!mapContainer.current) return // Verificar se o container existe
-    if (map.current) return // Evitar reinicialização
-
-    // Adicionar logs para debug
-    console.log('Inicializando mapa com token:', mapboxToken)
-    console.log('Estilo:', lightStyle)
+    if (!mapContainer.current) return
+    if (map.current) return
 
     try {
       mapboxgl.accessToken = mapboxToken
 
+      // Se tiver CTOs, usar a primeira como centro
+      const firstCTO = ctos.find(cto => cto.coordinates)
+      const initialCenter = firstCTO ? convertCoordinates(firstCTO.coordinates) : [-49.0771, -26.9187]
+
       map.current = new mapboxgl.Map({
         container: mapContainer.current,
         style: lightStyle,
-        center: [-49.0771, -26.9187], // Coordenadas iniciais (Blumenau, SC)
+        center: initialCenter as [number, number],
         zoom: 13,
         pitch: 0,
         bearing: 0,
@@ -52,28 +64,14 @@ export default function MapboxMap({
       map.current.addControl(new mapboxgl.NavigationControl(), "top-right")
       map.current.addControl(new mapboxgl.ScaleControl(), "bottom-right")
 
-      // Adicionar evento de carregamento
       map.current.on('load', () => {
-        console.log('Mapa carregado com sucesso')
-      })
-
-      // Adicionar evento de erro
-      map.current.on('error', (e) => {
-        console.error('Erro no mapa:', e)
+        console.log('Mapa carregado com centro em:', initialCenter)
       })
 
     } catch (error) {
       console.error('Erro ao inicializar o mapa:', error)
     }
-
-    // Cleanup
-    return () => {
-      if (map.current) {
-        map.current.remove()
-        map.current = null
-      }
-    }
-  }, [mapboxToken, lightStyle])
+  }, [mapboxToken, lightStyle, ctos])
 
   // Escutar o evento toggle3DMode
   useEffect(() => {
@@ -175,7 +173,6 @@ export default function MapboxMap({
     el.style.color = "white"
     el.style.fontWeight = "bold"
     el.style.fontSize = "10px"
-    el.style.transition = "transform 0.2s"
 
     // Adicionar texto com o número de portas disponíveis
     const availablePorts = cto.totalPorts - cto.occupiedPorts
@@ -183,73 +180,68 @@ export default function MapboxMap({
       el.textContent = availablePorts.toString()
     }
 
-    // Adicionar efeito hover
-    el.onmouseenter = () => {
-      el.style.transform = "scale(1.2)"
-    }
-    el.onmouseleave = () => {
-      el.style.transform = "scale(1)"
-    }
-
     return el
   }
 
-  // Adicionar marcadores para as CTOs
+  // Atualizar marcadores quando as CTOs mudarem
   useEffect(() => {
     if (!map.current || !map.current.loaded()) return
 
-    // Limpar marcadores existentes
-    Object.values(markersRef.current).forEach((marker) => marker.remove())
-    markersRef.current = {}
+    // Remover marcadores que não existem mais
+    Object.entries(markersRef.current).forEach(([id, marker]) => {
+      if (!ctos.find(cto => cto.id === id)) {
+        marker.remove()
+        delete markersRef.current[id]
+      }
+    })
 
-    // Adicionar novos marcadores
+    // Adicionar ou atualizar marcadores
     ctos.forEach((cto) => {
-      if (!cto.coordinates || cto.coordinates.length !== 2) return
+      if (!cto.coordinates) return
+
+      const coordinates = convertCoordinates(cto.coordinates)
+
+      // Se o marcador já existe, apenas atualize sua posição
+      if (markersRef.current[cto.id]) {
+        markersRef.current[cto.id].setLngLat(coordinates)
+        return
+      }
 
       const el = createMarkerElement(cto)
 
-      // Criar popup com informações da CTO
-      const popup = new mapboxgl.Popup({ offset: 25 }).setHTML(`
-          <div style="padding: 8px;">
-            <h3 style="margin: 0 0 8px; font-size: 14px; font-weight: bold;">${cto.name}</h3>
-            <p style="margin: 0; font-size: 12px;">${cto.description || "Sem descrição"}</p>
-            <p style="margin: 4px 0 0; font-size: 12px;">
-              <strong>Portas:</strong> ${cto.totalPorts - cto.occupiedPorts}/${cto.totalPorts} disponíveis
-            </p>
-          </div>
-        `)
-
       // Criar e adicionar o marcador
-      const marker = new mapboxgl.Marker(el)
-        .setLngLat([cto.coordinates[0], cto.coordinates[1]])
-        .setPopup(popup)
+      const marker = new mapboxgl.Marker({
+        element: el,
+        anchor: 'center'
+      })
+        .setLngLat(coordinates)
         .addTo(map.current!)
 
-      // Adicionar evento de clique
-      el.addEventListener("click", () => {
-        if (onCTOClick) {
-          onCTOClick(cto)
-        }
+      // Adicionar apenas o evento de clique
+      el.addEventListener('click', () => {
+        onCTOClick(cto)
       })
 
       // Armazenar referência ao marcador
       markersRef.current[cto.id] = marker
     })
 
-    // Ajustar o zoom para mostrar todos os marcadores se houver CTOs
+    // Ajustar o zoom para mostrar todos os marcadores
     if (ctos.length > 0) {
       const bounds = new mapboxgl.LngLatBounds()
+      let validCoordinates = false
 
       ctos.forEach((cto) => {
-        if (cto.coordinates && cto.coordinates.length === 2) {
-          bounds.extend([cto.coordinates[0], cto.coordinates[1]])
+        if (cto.coordinates) {
+          const coords = convertCoordinates(cto.coordinates)
+          bounds.extend(coords)
+          validCoordinates = true
         }
       })
 
-      // Só ajustar o zoom se tivermos coordenadas válidas
-      if (!bounds.isEmpty()) {
+      if (validCoordinates) {
         map.current.fitBounds(bounds, {
-          padding: 50,
+          padding: { top: 50, bottom: 50, left: 50, right: 350 },
           maxZoom: 15,
           duration: 1000,
         })

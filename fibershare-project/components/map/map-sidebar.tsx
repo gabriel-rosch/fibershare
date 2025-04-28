@@ -1,66 +1,62 @@
 "use client"
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
-import { Badge } from "@/components/ui/badge"
-import type { CTO } from "@/lib/utils/cto-utils"
+import type { CTO } from "@/lib/interfaces/service-interfaces"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { PortDrawer } from "./port-drawer"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Search, List } from "lucide-react"
+import { PortsDrawer } from "./ports-drawer"
 
 interface MapSidebarProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   ctos: CTO[]
   loading: boolean
-  error: any
-  leftOffset?: number
-  onCTOUpdated?: () => void
-  onCTOSelect?: (cto: CTO) => void
-  selectedCTO?: CTO | null
-  onPortSelect?: (portId: string) => void
-  onRefreshData?: () => void
+  error: string | null
+  leftOffset: number
+  onCTOSelect: (cto: CTO) => void
+  selectedCTO: CTO | null
+  onPortSelect: (portId: string) => void
+  onRefreshData: () => Promise<void>
 }
 
 export function MapSidebar({
   open,
   onOpenChange,
-  ctos = [],
+  ctos,
   loading,
   error,
-  leftOffset = 0,
-  onCTOUpdated,
+  leftOffset,
   onCTOSelect,
   selectedCTO,
   onPortSelect,
-  onRefreshData,
+  onRefreshData
 }: MapSidebarProps) {
-  const [localSelectedCTO, setLocalSelectedCTO] = useState<CTO | null>(null)
-  const [portDrawerOpen, setPortDrawerOpen] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
+  const [searchTerm, setSearchTerm] = useState("")
+  const [selectedCTOForPorts, setSelectedCTOForPorts] = useState<CTO | null>(null)
+  const [portsDrawerOpen, setPortsDrawerOpen] = useState(false)
 
-  // Sincronizar o selectedCTO externo com o estado local
-  useEffect(() => {
-    if (selectedCTO) {
-      setLocalSelectedCTO(selectedCTO)
-    }
-  }, [selectedCTO])
+  // Filtrar CTOs com base no termo de busca
+  const filteredCTOs = ctos.filter((cto) =>
+    cto.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    cto.region?.toLowerCase().includes(searchTerm.toLowerCase())
+  )
 
-  // Função para obter o rótulo de status
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case "active":
-        return "Ativa"
-      case "maintenance":
-        return "Em Manutenção"
-      case "inactive":
-        return "Inativa"
-      default:
-        return status
-    }
+  // Função para lidar com a seleção de CTO
+  const handleCTOSelect = (cto: CTO) => {
+    onCTOSelect(cto)
+  }
+
+  // Função para visualizar portas
+  const handleViewPorts = (cto: CTO, e: React.MouseEvent) => {
+    e.stopPropagation()
+    setSelectedCTOForPorts(cto)
+    setPortsDrawerOpen(true)
   }
 
   // Função para obter a cor do status
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status: string | undefined) => {
     switch (status) {
       case "active":
         return "bg-green-500"
@@ -73,187 +69,94 @@ export function MapSidebar({
     }
   }
 
-  // Função para lidar com o clique em uma CTO
-  const handleCTOClick = (cto: CTO) => {
-    setLocalSelectedCTO(cto)
-    setPortDrawerOpen(true)
-
-    // Notificar o componente pai sobre a seleção da CTO
-    if (onCTOSelect) {
-      onCTOSelect(cto)
-    }
-
-    // Carregar as portas da CTO quando ela for selecionada
-    fetchCTOPorts(cto.id)
-  }
-
-  // Função para buscar portas de uma CTO
-  const fetchCTOPorts = async (ctoId: string) => {
-    try {
-      setIsLoading(true)
-      // Usar o endpoint para buscar todas as portas de uma CTO
-      const response = await fetch(`/api/ctos/${ctoId}/ports`)
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || "Erro ao buscar portas para CTO")
-      }
-      const portsData = await response.json()
-
-      // Atualizar a CTO selecionada com as portas carregadas
-      if (localSelectedCTO && localSelectedCTO.id === ctoId) {
-        const updatedCTO = {
-          ...localSelectedCTO,
-          ports: portsData.map((port: any) => ({
-            id: port.id,
-            number: port.portNumber,
-            status: port.status,
-            price: port.price || 0,
-            customer: port.currentTenantName,
-            operatorId: port.operatorId,
-            operatorName: port.operatorName,
-            address: port.address,
-            plan: port.plan,
-            startDate: port.startDate,
-            endDate: port.endDate,
-          })),
-        }
-
-        setLocalSelectedCTO(updatedCTO)
-
-        // Atualizar também no componente pai se necessário
-        if (onCTOSelect) {
-          onCTOSelect(updatedCTO)
-        }
-      }
-
-      setIsLoading(false)
-    } catch (error: any) {
-      console.error("Erro ao buscar portas:", error.message)
-      setIsLoading(false)
-    }
-  }
-
-  // Função para atualizar os dados após uma operação
-  const handlePortUpdated = () => {
-    // Quando uma porta for atualizada, recarregar os dados da CTO
-    if (onRefreshData) {
-      onRefreshData()
-    }
-
-    // Também recarregar as portas da CTO selecionada
-    if (localSelectedCTO) {
-      fetchCTOPorts(localSelectedCTO.id)
-    }
-  }
-
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent
           side="left"
           className="w-[350px] p-0"
-          // Aplicar margem à esquerda para alinhar com a coluna lateral
-          style={{ marginLeft: `${leftOffset}px`, width: `calc(350px - ${leftOffset}px)` }}
-          // Desabilitar o botão de fechar padrão
-          closeButton={false}
+          style={{ 
+            marginLeft: `${leftOffset}px`,
+            left: leftOffset,
+            position: 'fixed'
+          }}
         >
           <SheetHeader className="p-4 border-b">
-            <SheetTitle>CTOs</SheetTitle>
+            <SheetTitle>Lista de CTOs</SheetTitle>
+            <div className="relative mt-2">
+              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar CTOs..."
+                className="pl-8"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
           </SheetHeader>
 
-          <CTOList
-            ctos={ctos}
-            loading={loading}
-            error={error}
-            getStatusColor={getStatusColor}
-            getStatusLabel={getStatusLabel}
-            onCTOClick={handleCTOClick}
-            selectedCTO={localSelectedCTO}
-          />
+          <ScrollArea className="h-[calc(100vh-8rem)]">
+            {loading ? (
+              <div className="flex items-center justify-center h-32">
+                <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full" />
+              </div>
+            ) : error ? (
+              <div className="p-4 text-center text-destructive">{error}</div>
+            ) : filteredCTOs.length === 0 ? (
+              <div className="p-4 text-center text-muted-foreground">
+                Nenhuma CTO encontrada
+              </div>
+            ) : (
+              <div className="p-4 space-y-2">
+                {filteredCTOs.map((cto) => (
+                  <div key={cto.id} className="flex items-center gap-2">
+                    <Button
+                      variant={selectedCTO?.id === cto.id ? "secondary" : "outline"}
+                      className={`flex-1 justify-start ${
+                        selectedCTO?.id === cto.id ? "ring-2 ring-primary" : ""
+                      }`}
+                      onClick={() => handleCTOSelect(cto)}
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full ${getStatusColor(cto.status)}`} />
+                        <div className="flex-1">
+                          <p className="text-sm font-medium">{cto.name}</p>
+                          <p className="text-xs text-muted-foreground">{cto.region}</p>
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {cto.totalPorts - cto.occupiedPorts}/{cto.totalPorts}
+                        </div>
+                      </div>
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={(e) => handleViewPorts(cto, e)}
+                    >
+                      <List className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </ScrollArea>
         </SheetContent>
       </Sheet>
 
-      {/* Gaveta de portas */}
-      {localSelectedCTO && (
-        <PortDrawer
-          open={portDrawerOpen}
-          onOpenChange={setPortDrawerOpen}
-          cto={localSelectedCTO}
-          onPortUpdated={handlePortUpdated}
-          isLoading={isLoading}
+      {/* Drawer de Portas */}
+      {selectedCTOForPorts && (
+        <PortsDrawer
+          selectedCTO={selectedCTOForPorts}
+          open={portsDrawerOpen}
+          onOpenChange={setPortsDrawerOpen}
+          onClose={() => {
+            setPortsDrawerOpen(false)
+            setSelectedCTOForPorts(null)
+          }}
+          onPortSelect={onPortSelect}
+          onRefreshData={onRefreshData}
         />
       )}
     </>
-  )
-}
-
-interface CTOListProps {
-  ctos: CTO[]
-  loading: boolean
-  error: string | null
-  getStatusColor: (status: string) => string
-  getStatusLabel: (status: string) => string
-  onCTOClick: (cto: CTO) => void
-  selectedCTO: CTO | null
-}
-
-function CTOList({ ctos, loading, error, getStatusColor, getStatusLabel, onCTOClick, selectedCTO }: CTOListProps) {
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-[200px]">
-        <div className="text-center">
-          <div className="animate-spin h-6 w-6 border-4 border-primary border-t-transparent rounded-full mx-auto mb-2"></div>
-          <p className="text-xs text-muted-foreground">Carregando CTOs...</p>
-        </div>
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="p-3">
-        <Alert variant="destructive">
-          <AlertTitle className="text-sm">Erro</AlertTitle>
-          <AlertDescription className="text-xs">{error}</AlertDescription>
-        </Alert>
-      </div>
-    )
-  }
-
-  if (!ctos || ctos.length === 0) {
-    return (
-      <div className="flex items-center justify-center h-[200px]">
-        <p className="text-xs text-muted-foreground">Nenhuma CTO encontrada</p>
-      </div>
-    )
-  }
-
-  return (
-    <ScrollArea className="h-[calc(100vh-120px)]">
-      <div className="p-3 grid gap-2">
-        {ctos.map((cto) => (
-          <div
-            key={cto.id}
-            className={`border rounded-md p-2 hover:bg-muted/50 cursor-pointer transition-colors ${
-              selectedCTO && selectedCTO.id === cto.id ? "bg-muted border-primary" : ""
-            }`}
-            onClick={() => onCTOClick(cto)}
-          >
-            <div className="flex justify-between items-center">
-              <h3 className="text-sm font-medium">{cto.name}</h3>
-              <Badge className={`${getStatusColor(cto.status || "")} text-white text-xs py-0 h-5`}>
-                {getStatusLabel(cto.status || "")}
-              </Badge>
-            </div>
-            <p className="text-xs text-muted-foreground mt-1 mb-1 line-clamp-1">{cto.description}</p>
-            <div className="text-xs">
-              <span>
-                {cto.totalPorts - cto.occupiedPorts}/{cto.totalPorts} portas disponíveis
-              </span>
-            </div>
-          </div>
-        ))}
-      </div>
-    </ScrollArea>
   )
 }

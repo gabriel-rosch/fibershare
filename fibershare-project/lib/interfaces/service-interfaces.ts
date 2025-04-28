@@ -24,15 +24,19 @@ export interface CTO {
   description: string
   totalPorts: number
   occupiedPorts: number
-  coordinates: [number, number]
-  createdAt: string
-  updatedAt: string
+  coordinates: {
+    lat: number
+    lng: number
+  }
   region?: string
   status?: string
+  createdAt: string
+  updatedAt: string
+  ports?: CTOPort[]
 }
 
 // Interfaces para portas de CTO
-export type CTOPortStatus = "available" | "occupied" | "reserved" | "maintenance"
+export type CTOPortStatus = 'available' | 'reserved' | 'occupied' | 'maintenance'
 
 export interface CTOPort {
   id: string

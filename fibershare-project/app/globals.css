@@ -169,13 +169,16 @@ h6 {
 
 /* Estilos para marcadores de CTO */
 .cto-marker {
+  @apply flex items-center justify-center rounded-full border-2 border-white shadow-md;
+  width: 24px;
+  height: 24px;
   cursor: pointer;
   transition: transform 0.2s, box-shadow 0.2s;
 }
 
 .cto-marker:hover {
   transform: scale(1.2);
-  box-shadow: 0 0 8px rgba(0, 0, 0, 0.5);
+  @apply shadow-lg;
 }
 
 /* Estilos para o popup de CTO */
@@ -206,4 +209,17 @@ h6 {
 .mapboxgl-canvas {
   width: 100% !important;
   height: 100% !important;
+}
+
+/* Estilos para os popups do Mapbox */
+.mapboxgl-popup {
+  max-width: 240px !important;
+}
+
+.mapboxgl-popup-content {
+  @apply bg-background border border-border shadow-lg rounded-lg p-0;
+}
+
+.mapboxgl-popup-tip {
+  @apply border-background;
 }

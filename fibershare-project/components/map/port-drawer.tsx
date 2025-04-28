@@ -1,5 +1,5 @@
 "use client"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetClose } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -8,7 +8,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import type { CTO } from "@/lib/utils/cto-utils"
+import type { CTO, CTOPort } from "@/lib/interfaces/service-interfaces"
+import { ctoPortService } from "@/lib/services/supabase/cto-port-service"
 
 export interface PortDrawerProps {
   selectedCTO: CTO;
@@ -18,11 +19,34 @@ export interface PortDrawerProps {
 }
 
 export function PortDrawer({ selectedCTO, selectedPortId, onClose, onRefreshData }: PortDrawerProps) {
-  const [selectedPort, setSelectedPort] = useState<any | null>(null)
+  const [selectedPort, setSelectedPort] = useState<CTOPort | null>(null)
   const [newPrice, setNewPrice] = useState<string>("")
   const [updating, setUpdating] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  // Carregar dados da porta selecionada
+  useEffect(() => {
+    async function loadPort() {
+      if (!selectedPortId) return
+
+      setLoading(true)
+      setError(null)
+
+      try {
+        const port = await ctoPortService.getPortById(selectedPortId)
+        setSelectedPort(port)
+      } catch (err) {
+        console.error("Erro ao carregar porta:", err)
+        setError("Erro ao carregar detalhes da porta")
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadPort()
+  }, [selectedPortId])
 
   // Função para formatar preço
   const formatCurrency = (value: number) => {
@@ -230,12 +254,42 @@ export function PortDrawer({ selectedCTO, selectedPortId, onClose, onRefreshData
     }
   }
 
+  if (loading) {
+    return (
+      <Sheet>
+        <SheetContent side="right" className="w-[400px] sm:w-[540px] p-0">
+          <div className="flex items-center justify-center h-[200px]">
+            <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full" />
+          </div>
+        </SheetContent>
+      </Sheet>
+    )
+  }
+
+  if (error || !selectedPort) {
+    return (
+      <Sheet>
+        <SheetContent side="right" className="w-[400px] sm:w-[540px] p-0">
+          <SheetHeader className="p-6 border-b">
+            <SheetTitle>Erro</SheetTitle>
+            <SheetDescription>{error || "Porta não encontrada"}</SheetDescription>
+          </SheetHeader>
+          <div className="p-4 border-t flex justify-end">
+            <SheetClose asChild>
+              <Button variant="outline" onClick={onClose}>Fechar</Button>
+            </SheetClose>
+          </div>
+        </SheetContent>
+      </Sheet>
+    )
+  }
+
   return (
     <Sheet>
-      <SheetContent className="w-[400px] sm:w-[540px] p-0">
+      <SheetContent side="right" className="w-[400px] sm:w-[540px] p-0">
         <SheetHeader className="p-6 border-b">
-          <SheetTitle>CTO: {selectedCTO.name}</SheetTitle>
-          <SheetDescription>{selectedCTO.description}</SheetDescription>
+          <SheetTitle>Porta {selectedPort.portNumber}</SheetTitle>
+          <SheetDescription>CTO: {selectedCTO.name}</SheetDescription>
         </SheetHeader>
 
         <div className="p-6">
@@ -255,7 +309,7 @@ export function PortDrawer({ selectedCTO, selectedPortId, onClose, onRefreshData
                   }`}
                   onClick={() => handlePortSelect(port)}
                 >
-                  <div className="text-sm font-medium">Porta {port.number}</div>
+                  <div className="text-sm font-medium">Porta {port.portNumber}</div>
                   <Badge className={`${getPortStatusColor(port.status)} text-white text-xs mt-1`}>
                     {getPortStatusLabel(port.status)}
                   </Badge>
@@ -268,7 +322,7 @@ export function PortDrawer({ selectedCTO, selectedPortId, onClose, onRefreshData
           {selectedPort && (
             <div className="mt-6">
               <Separator className="my-4" />
-              <h4 className="text-md font-medium mb-2">Detalhes da Porta {selectedPort.number}</h4>
+              <h4 className="text-md font-medium mb-2">Detalhes da Porta {selectedPort.portNumber}</h4>
 
               <Tabs defaultValue="info">
                 <TabsList className="mb-4">

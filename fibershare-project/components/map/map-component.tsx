@@ -1,16 +1,13 @@
 "use client"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import dynamic from "next/dynamic"
 import { useCTOApi } from "@/lib/hooks/use-cto-api"
 import { Layers, Network, Settings, Map, Home } from "lucide-react"
 import { MapSidebar } from "./map-sidebar"
-import { ConfigModal } from "./config-modal"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { CTODrawer } from "./cto-drawer"
-import { PortDrawer } from "./port-drawer"
-import type { CTO } from "@/lib/utils/cto-utils"
-import mapboxgl from 'mapbox-gl';
+import type { CTO } from "@/lib/interfaces/service-interfaces"
 import 'mapbox-gl/dist/mapbox-gl.css';
 
 // Configurações do MapBox
@@ -32,32 +29,29 @@ const MapboxMapComponent = dynamic(() => import("@/components/map/mapbox-map"), 
 })
 
 export function MapComponent() {
-  // Iniciar com a sidebar fechada
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [configModalOpen, setConfigModalOpen] = useState(false)
   const [selectedCTO, setSelectedCTO] = useState<CTO | null>(null)
   const [selectedPortId, setSelectedPortId] = useState<string | null>(null)
-
-  // Usar o hook de API para CTOs
   const { ctos, isLoading, error, refreshData } = useCTOApi()
 
   // Função para lidar com o clique em uma CTO no mapa
   const handleMapCTOClick = (cto: CTO) => {
-    console.log("CTO clicada no mapa:", cto)
     setSelectedCTO(cto)
-    setSidebarOpen(true) // Abrir a sidebar quando uma CTO é clicada no mapa
+    setSidebarOpen(true)
   }
 
+  // Função para lidar com a seleção de CTO na sidebar
   const handleCTOSelect = (cto: CTO) => {
-    console.log("CTO selecionada:", cto)
     setSelectedCTO(cto)
-    setSelectedPortId(null) // Reset port selection when selecting a new CTO
+    setSelectedPortId(null) // Limpa a seleção de porta anterior
   }
 
+  // Função para lidar com a seleção de porta
   const handlePortSelect = (portId: string) => {
     setSelectedPortId(portId)
   }
 
+  // Função para fechar drawers
   const handleCloseDrawers = () => {
     setSelectedCTO(null)
     setSelectedPortId(null)
@@ -75,7 +69,7 @@ export function MapComponent() {
   return (
     <div className="relative h-[calc(100vh-56px)] w-full flex">
       {/* Coluna lateral fixa */}
-      <div className="w-16 bg-background border-r flex flex-col items-center py-4 z-10">
+      <div className="w-16 bg-background border-r flex flex-col items-center py-4 z-20">
         <TooltipProvider>
           <div className="flex flex-col gap-4">
             <Tooltip>
@@ -154,7 +148,9 @@ export function MapComponent() {
                   variant="ghost"
                   size="icon"
                   className="h-10 w-10 rounded-full"
-                  onClick={() => setConfigModalOpen(true)}
+                  onClick={() => {
+                    /* Ação para o botão de rede */
+                  }}
                 >
                   <Settings className="h-5 w-5" />
                 </Button>
@@ -168,8 +164,7 @@ export function MapComponent() {
       </div>
 
       {/* Área do mapa */}
-      <div className="flex-1 relative" style={{ minHeight: '400px' }}>
-        {/* Mapa principal */}
+      <div className="flex-1 relative">
         <MapboxMapComponent
           mapboxToken={MAPBOX_TOKEN}
           lightStyle={LIGHT_STYLE}
@@ -179,39 +174,30 @@ export function MapComponent() {
           onCTOClick={handleMapCTOClick}
         />
 
-        {/* Sidebar do mapa */}
-        <MapSidebar
-          open={sidebarOpen}
-          onOpenChange={setSidebarOpen}
-          ctos={ctos}
-          loading={isLoading}
-          error={error}
-          leftOffset={64} // 64px é a largura da coluna lateral
-          onCTOSelect={handleCTOSelect}
-          selectedCTO={selectedCTO}
-          onPortSelect={handlePortSelect}
-          onRefreshData={refreshData}
-        />
-
-        {/* Drawers e Modals */}
-        {selectedCTO && !selectedPortId && (
-          <CTODrawer
+        {/* Sidebar e Drawers */}
+        <div className="fixed inset-y-0 left-16 z-50">
+          <MapSidebar
+            open={sidebarOpen}
+            onOpenChange={setSidebarOpen}
+            ctos={ctos}
+            loading={isLoading}
+            error={error}
+            leftOffset={0}
+            onCTOSelect={handleCTOSelect}
             selectedCTO={selectedCTO}
-            onClose={handleCloseDrawers}
-          />
-        )}
-
-        {selectedCTO && selectedPortId && (
-          <PortDrawer
-            selectedCTO={selectedCTO}
-            selectedPortId={selectedPortId}
-            onClose={() => setSelectedPortId(null)}
+            onPortSelect={handlePortSelect}
             onRefreshData={refreshData}
           />
-        )}
 
-        {/* Modal de configurações */}
-        <ConfigModal open={configModalOpen} onOpenChange={setConfigModalOpen} />
+          {/* Drawer de CTO */}
+          {selectedCTO && !selectedPortId && (
+            <CTODrawer
+              selectedCTO={selectedCTO}
+              onClose={handleCloseDrawers}
+              onPortSelect={handlePortSelect}
+            />
+          )}
+        </div>
       </div>
     </div>
   )

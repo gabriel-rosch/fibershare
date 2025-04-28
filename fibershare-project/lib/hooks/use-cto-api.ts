@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import type { CTO } from "@/lib/utils/cto-utils"
+import type { CTO } from "@/lib/interfaces/service-interfaces"
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import type { Database } from "@/types/supabase"
 
