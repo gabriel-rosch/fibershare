@@ -21,18 +21,13 @@ export interface Operator {
 export interface CTO {
   id: string
   name: string
-  description: string
-  totalPorts: number
-  occupiedPorts: number
-  coordinates: {
+  location: {
     lat: number
     lng: number
   }
-  region?: string
-  status?: string
-  createdAt: string
-  updatedAt: string
-  ports?: CTOPort[]
+  status: 'active' | 'inactive' | 'maintenance'
+  totalPorts: number
+  operatorId: string
 }
 
 // Interfaces para portas de CTO
@@ -41,19 +36,11 @@ export type CTOPortStatus = 'available' | 'reserved' | 'occupied' | 'maintenance
 export interface CTOPort {
   id: string
   ctoId: string
-  portNumber: number
-  status: CTOPortStatus
-  price: number
-  currentTenantId?: string
-  currentTenantName?: string
-  operatorId?: string
-  operatorName?: string
-  createdAt: string
-  updatedAt: string
-  startDate?: string
-  endDate?: string
-  plan?: string
-  address?: string
+  number: number
+  status: 'available' | 'occupied' | 'reserved' | 'maintenance'
+  clientId?: string
+  lastModified?: Date
+  price?: number
 }
 
 // Interfaces para ordens de serviço
@@ -249,4 +236,18 @@ export interface CreateListingData {
   quantity: number
   price: number
   technology: string
+}
+
+export interface ExtendedCTOPort extends CTOPort {
+  portNumber: number;
+  price: number;
+  customer?: string;
+  operatorName?: string;
+  status: 'available' | 'occupied' | 'reserved' | 'maintenance';
+}
+
+export interface ExtendedCTO extends CTO {
+  ports?: ExtendedCTOPort[];
+  description?: string;
+  occupiedPorts: number;
 }

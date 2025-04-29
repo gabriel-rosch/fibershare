@@ -7,16 +7,28 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { AlertCircle, MapPin, Activity, Settings, List } from "lucide-react"
 import type { CTO, CTOPort } from "@/lib/interfaces/service-interfaces"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetClose } from "@/components/ui/sheet"
-import { ctoPortService } from "@/lib/services/supabase/cto-port-service"
+import { ctoPortService } from "@/lib/services/cto-port-service"
+
+interface ExtendedCTO extends CTO {
+  description?: string;
+  occupiedPorts: number;
+}
+
+interface ExtendedCTOPort extends CTOPort {
+  status: 'available' | 'occupied' | 'reserved' | 'maintenance';
+  portNumber: number;
+  price?: number;
+  currentTenantName?: string;
+}
 
 interface CTODrawerProps {
-  selectedCTO: CTO;
+  selectedCTO: ExtendedCTO;
   onClose: () => void;
   onPortSelect: (portId: string) => void;
 }
 
 export function CTODrawer({ selectedCTO, onClose, onPortSelect }: CTODrawerProps) {
-  const [ports, setPorts] = useState<CTOPort[]>([])
+  const [ports, setPorts] = useState<ExtendedCTOPort[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -42,7 +54,7 @@ export function CTODrawer({ selectedCTO, onClose, onPortSelect }: CTODrawerProps
   }, [selectedCTO?.id])
 
   // Calcular a porcentagem de ocupação
-  const calculateOccupancy = (cto: CTO) => {
+  const calculateOccupancy = (cto: ExtendedCTO) => {
     if (cto.totalPorts <= 0) return 0
     return Math.round((cto.occupiedPorts / cto.totalPorts) * 100)
   }

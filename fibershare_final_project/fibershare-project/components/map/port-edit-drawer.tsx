@@ -3,11 +3,11 @@ import { useState } from "react"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetClose } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import type { CTOPort } from "@/lib/interfaces/service-interfaces"
-import { ctoPortService } from "@/lib/services/supabase/cto-port-service"
+import type { ExtendedCTOPort } from "@/lib/interfaces/service-interfaces"
+import { ctoPortService } from "@/lib/services/cto-port-service"
 
 interface PortEditDrawerProps {
-  port: CTOPort
+  port: ExtendedCTOPort
   open: boolean
   onOpenChange: (open: boolean) => void
   onClose: () => void
@@ -38,7 +38,7 @@ export function PortEditDrawer({ port, open, onOpenChange, onClose, onPortUpdate
   const handleUpdatePrice = async () => {
     try {
       setLoading(true)
-      await ctoPortService.updatePortPrice(port.id, Number(price))
+      await ctoPortService.updatePort(port.id, { price: Number(price) })
       onPortUpdated()
       onClose()
     } catch (error) {

@@ -4,7 +4,7 @@ import type React from "react"
 
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { useAuthStore } from "@/lib/store/auth-store"
+import { useAuth } from "@/lib/authContext"
 import { MapHeader } from "@/components/map/map-header"
 
 export default function MapLayout({
@@ -12,18 +12,18 @@ export default function MapLayout({
 }: {
   children: React.ReactNode
 }) {
-  const { user } = useAuthStore()
+  const { user, isAuthenticated } = useAuth()
   const router = useRouter()
 
   useEffect(() => {
     // Verificar se o usuário está autenticado
-    if (!user) {
+    if (!isAuthenticated) {
       router.push("/login")
     }
-  }, [user, router])
+  }, [isAuthenticated, router])
 
   // Mostrar um estado de carregamento ou nada enquanto verifica a autenticação
-  if (!user) {
+  if (!isAuthenticated) {
     return (
       <div className="flex h-screen items-center justify-center">
         <div className="text-center">

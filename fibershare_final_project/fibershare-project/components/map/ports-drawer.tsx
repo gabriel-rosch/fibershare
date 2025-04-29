@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { MoreVertical } from "lucide-react"
 import type { CTO, CTOPort } from "@/lib/interfaces/service-interfaces"
-import { ctoPortService } from "@/lib/services/supabase/cto-port-service"
+import { ctoPortService } from "@/lib/services/cto-port-service"
 import { PortEditDrawer } from "./port-edit-drawer"
 
 interface PortsDrawerProps {
@@ -22,6 +22,12 @@ interface PortsDrawerProps {
   onRefreshData: () => Promise<void>
 }
 
+interface ExtendedCTOPort extends CTOPort {
+  portNumber: number;
+  price: number;
+  currentTenantName?: string;
+}
+
 export function PortsDrawer({ 
   selectedCTO, 
   open,
@@ -30,7 +36,7 @@ export function PortsDrawer({
   onPortSelect,
   onRefreshData
 }: PortsDrawerProps) {
-  const [ports, setPorts] = useState<CTOPort[]>([])
+  const [ports, setPorts] = useState<ExtendedCTOPort[]>([])
   const [occupiedCount, setOccupiedCount] = useState(0)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -130,8 +136,8 @@ export function PortsDrawer({
             <SheetTitle>Portas da CTO {selectedCTO?.name}</SheetTitle>
             <SheetDescription className="flex items-center justify-between">
               <span>
-                {selectedCTO?.totalPorts - occupiedCount} portas disponíveis
-                de {selectedCTO?.totalPorts} totais
+                {(selectedCTO?.totalPorts || 0) - occupiedCount} portas disponíveis
+                de {selectedCTO?.totalPorts || 0} totais
               </span>
             </SheetDescription>
           </SheetHeader>

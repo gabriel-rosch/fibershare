@@ -4,15 +4,24 @@ import { useEffect, useRef, useState } from "react"
 import mapboxgl from "mapbox-gl"
 import "mapbox-gl/dist/mapbox-gl.css"
 import type { CTO } from "@/lib/interfaces/service-interfaces"
-import { ctoPortService } from "@/lib/services/supabase/cto-port-service"
+
+// Atualizar o tipo CTO ou criar um tipo estendido
+interface ExtendedCTO extends CTO {
+  coordinates: {
+    lat: number;
+    lng: number;
+  };
+  occupiedPorts: number;
+  status: 'active' | 'maintenance' | 'inactive';
+}
 
 export interface MapboxMapProps {
-  mapboxToken: string
-  lightStyle: string
-  threeDStyle: string
-  className?: string
-  ctos: CTO[]
-  onCTOClick: (cto: CTO) => void
+  mapboxToken: string;
+  lightStyle: string;
+  threeDStyle: string;
+  className?: string;
+  ctos: ExtendedCTO[];
+  onCTOClick: (cto: ExtendedCTO) => void;
 }
 
 export default function MapboxMap({
@@ -157,7 +166,7 @@ export default function MapboxMap({
   }
 
   // Função para criar um elemento HTML para o marcador
-  const createMarkerElement = (cto: CTO) => {
+  const createMarkerElement = (cto: ExtendedCTO) => {
     const el = document.createElement("div")
     el.className = "cto-marker"
     el.style.width = "24px"

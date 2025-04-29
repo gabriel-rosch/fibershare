@@ -31,14 +31,16 @@ import { useDebounce } from "@/lib/hooks/use-debounce"
 import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "@/components/ui/use-toast"
 import { ApiService, type User, type CreateUserData } from "@/lib/services/api-service"
-import { useAuthStore, type UserRole } from "@/lib/store/auth-store"
+import { useAuth } from "@/lib/authContext"
 import { Badge } from "@/components/ui/badge"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Checkbox } from "@/components/ui/checkbox"
 
+type UserRole = "admin" | "operator_admin" | "operator_user" | "client"
+
 export default function UsersPage() {
   const { t } = useTranslations()
-  const { user: authUser } = useAuthStore()
+  const { user } = useAuth()
   const [searchQuery, setSearchQuery] = useState("")
   const debouncedSearch = useDebounce(searchQuery, 500)
   const [roleFilter, setRoleFilter] = useState("all")
@@ -89,7 +91,7 @@ export default function UsersPage() {
     try {
       const response = await ApiService.createUser({
         ...newUser,
-        operatorId: authUser?.operatorId,
+        operatorId: user?.operatorId,
       })
 
       // Se a resposta incluir uma senha temporária, armazená-la

@@ -1,6 +1,6 @@
 "use client"
 
-import { useAuthStore } from "@/lib/store/auth-store"
+import { useAuth } from "@/lib/authContext"
 import { useTranslations } from "@/lib/i18n/use-translations"
 import { Button } from "@/components/ui/button"
 import {
@@ -18,7 +18,7 @@ import { useRouter } from "next/navigation"
 import { useState } from "react"
 
 export function MapHeader() {
-  const { user, signOut } = useAuthStore()
+  const { user, logout } = useAuth()
   const { t } = useTranslations()
   const router = useRouter()
   const [is3DEnabled, setIs3DEnabled] = useState(false)
@@ -82,7 +82,7 @@ export function MapHeader() {
             <DropdownMenuItem className="cursor-pointer">{t("common", "settings")}</DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
-              onClick={() => signOut()}
+              onClick={() => logout()}
               className="cursor-pointer text-destructive focus:text-destructive"
             >
               {t("common", "logout")}

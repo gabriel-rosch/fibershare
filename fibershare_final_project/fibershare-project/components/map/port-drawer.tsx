@@ -9,17 +9,29 @@ import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import type { CTO, CTOPort } from "@/lib/interfaces/service-interfaces"
-import { ctoPortService } from "@/lib/services/supabase/cto-port-service"
+import { ctoPortService } from "@/lib/services/cto-port-service"
 
-export interface PortDrawerProps {
-  selectedCTO: CTO;
+interface ExtendedCTO extends CTO {
+  ports?: ExtendedCTOPort[];
+}
+
+interface ExtendedCTOPort extends CTOPort {
+  portNumber: number;
+  price: number;
+  customer?: string;
+  operatorName?: string;
+  status: 'available' | 'occupied' | 'reserved' | 'maintenance';
+}
+
+interface PortDrawerProps {
+  selectedCTO: ExtendedCTO;
   selectedPortId: string;
   onClose: () => void;
   onRefreshData: () => Promise<void>;
 }
 
 export function PortDrawer({ selectedCTO, selectedPortId, onClose, onRefreshData }: PortDrawerProps) {
-  const [selectedPort, setSelectedPort] = useState<CTOPort | null>(null)
+  const [selectedPort, setSelectedPort] = useState<ExtendedCTOPort | null>(null)
   const [newPrice, setNewPrice] = useState<string>("")
   const [updating, setUpdating] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -35,7 +47,7 @@ export function PortDrawer({ selectedCTO, selectedPortId, onClose, onRefreshData
       setError(null)
 
       try {
-        const port = await ctoPortService.getPortById(selectedPortId)
+        const port = await ctoPortService.getPortDetails(selectedPortId)
         setSelectedPort(port)
       } catch (err) {
         console.error("Erro ao carregar porta:", err)
@@ -96,6 +108,12 @@ export function PortDrawer({ selectedCTO, selectedPortId, onClose, onRefreshData
     setSuccess(null)
   }
 
+  // Função para validar o status da porta
+  const validatePortStatus = (status: string): 'available' | 'occupied' | 'reserved' | 'maintenance' => {
+    const validStatuses = ['available', 'occupied', 'reserved', 'maintenance'] as const;
+    return validStatuses.includes(status as any) ? status as any : 'available';
+  };
+
   // Função para atualizar o preço da porta
   const handleUpdatePrice = async () => {
     if (!selectedPort) return
@@ -129,14 +147,26 @@ export function PortDrawer({ selectedCTO, selectedPortId, onClose, onRefreshData
 
       // Atualizar a porta no estado local
       if (selectedCTO.ports) {
-        const updatedPorts = selectedCTO.ports.map((port) => (port.id === selectedPort.id ? { ...port, price } : port))
-
-        // Atualizar a CTO com as portas atualizadas
-        selectedCTO.ports = updatedPorts
+        const updatedPorts = selectedCTO.ports.map((port) => {
+          const validatedPort: ExtendedCTOPort = {
+            ...port,
+            status: validatePortStatus(port.status),
+            portNumber: port.number,
+            price: port.price || 0
+          };
+          return validatedPort;
+        });
+        selectedCTO.ports = updatedPorts;
       }
 
       // Atualizar a porta selecionada
-      setSelectedPort({ ...selectedPort, price })
+      const validatedSelectedPort: ExtendedCTOPort = {
+        ...selectedPort,
+        status: validatePortStatus(selectedPort.status),
+        portNumber: selectedPort.number,
+        price: selectedPort.price || 0
+      };
+      setSelectedPort(validatedSelectedPort);
 
       setSuccess("Preço atualizado com sucesso")
 
@@ -183,7 +213,7 @@ export function PortDrawer({ selectedCTO, selectedPortId, onClose, onRefreshData
         )
 
         // Atualizar a CTO com as portas atualizadas
-        selectedCTO.ports = updatedPorts
+        selectedCTO.ports = updatedPorts as ExtendedCTOPort[]
       }
 
       // Atualizar a porta selecionada
@@ -234,7 +264,7 @@ export function PortDrawer({ selectedCTO, selectedPortId, onClose, onRefreshData
         )
 
         // Atualizar a CTO com as portas atualizadas
-        selectedCTO.ports = updatedPorts
+        selectedCTO.ports = updatedPorts as ExtendedCTOPort[]
       }
 
       // Atualizar a porta selecionada
@@ -301,7 +331,7 @@ export function PortDrawer({ selectedCTO, selectedPortId, onClose, onRefreshData
             </div>
           ) : (
             <div className="grid grid-cols-4 gap-2">
-              {selectedCTO.ports.map((port) => (
+              {selectedCTO.ports?.map((port) => (
                 <div
                   key={port.id}
                   className={`border rounded-md p-2 text-center cursor-pointer transition-colors ${

@@ -2,9 +2,9 @@ import { setCookie, getCookie, deleteCookie } from 'cookies-next';
 
 export const tokenService = {
   get: () => {
-    return typeof window !== 'undefined' 
-      ? localStorage.getItem('authToken') || getCookie('authToken')
-      : getCookie('authToken');
+    if (typeof window === 'undefined') return null;
+    const token = localStorage.getItem('authToken') || getCookie('authToken');
+    return token as string;
   },
 
   set: (token: string) => {
