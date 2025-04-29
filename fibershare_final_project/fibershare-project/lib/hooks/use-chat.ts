@@ -2,23 +2,23 @@
 
 import { useState, useEffect, useCallback } from "react"
 import type { ChatContact, ChatMessage } from "@/lib/interfaces/service-interfaces"
-import { chatService } from "@/lib/services/supabase/chat-service"
-import { authService } from "@/lib/services/supabase/auth-service"
+import { chatService } from "@/lib/services/chat-service"
+import { useAuth } from "@/lib/authContext"
 
 export function useChat() {
   const [conversations, setConversations] = useState<ChatContact[]>([])
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [activeConversation, setActiveConversation] = useState<ChatContact | null>(null)
   const [loading, setLoading] = useState(true)
+  const { user } = useAuth()
+  
+  const isDeveloper = user?.role === 'developer'
 
   // Carregar contatos
   useEffect(() => {
     const loadContacts = async () => {
       setLoading(true)
       try {
-        // Verificar se o usuário é um desenvolvedor
-        const isDeveloper = await authService.isDeveloperUser()
-
         if (isDeveloper) {
           // Dados mockados para desenvolvedores
           const mockContacts: ChatContact[] = [
@@ -80,7 +80,7 @@ export function useChat() {
     }
 
     loadContacts()
-  }, [activeConversation])
+  }, [isDeveloper])
 
   // Carregar mensagens quando um contato é selecionado
   useEffect(() => {
@@ -89,9 +89,6 @@ export function useChat() {
 
       setLoading(true)
       try {
-        // Verificar se o usuário é um desenvolvedor
-        const isDeveloper = await authService.isDeveloperUser()
-
         if (isDeveloper) {
           // Dados mockados para desenvolvedores
           const mockChatMessages: Record<string, ChatMessage[]> = {
@@ -153,7 +150,7 @@ export function useChat() {
           const messages = await chatService.getMessages(activeConversation.id)
 
           // Adicionar propriedade text para compatibilidade
-          const messagesWithText = messages.map((msg) => ({
+          const messagesWithText = messages.map((msg: ChatMessage) => ({
             ...msg,
             text: msg.content,
           }))
@@ -168,16 +165,13 @@ export function useChat() {
     }
 
     loadMessages()
-  }, [activeConversation])
+  }, [isDeveloper])
 
   // Enviar mensagem
   const sendMessage = useCallback(async (contactId: string, content: string) => {
     if (!content.trim()) return null
 
     try {
-      // Verificar se o usuário é um desenvolvedor
-      const isDeveloper = await authService.isDeveloperUser()
-
       if (isDeveloper) {
         // Simular envio de mensagem para desenvolvedores
         const newMessage: ChatMessage = {
@@ -271,7 +265,7 @@ export function useChat() {
       console.error("Erro ao enviar mensagem:", error)
       return null
     }
-  }, [])
+  }, [isDeveloper])
 
   return {
     conversations,

@@ -1,4 +1,5 @@
-import type { ChatContact, ChatMessage } from "@/lib/mock-data/chat"
+import apiClient from '@/lib/apiClient';
+import type { ChatMessage, ChatContact } from '@/lib/interfaces/service-interfaces';
 
 // Função para obter contatos de chat
 export async function getContacts(): Promise<ChatContact[]> {
@@ -121,3 +122,20 @@ export function formatLastSeen(timestamp: string): string {
     return `há ${diffDays} ${diffDays === 1 ? "dia" : "dias"}`
   }
 }
+
+export const chatService = {
+  getConversations: async () => {
+    const response = await apiClient.get('/chat/conversations');
+    return response.data;
+  },
+
+  getMessages: async (contactId: string) => {
+    const response = await apiClient.get(`/chat/messages/${contactId}`);
+    return response.data;
+  },
+
+  sendMessage: async (contactId: string, content: string) => {
+    const response = await apiClient.post('/chat/messages', { contactId, content });
+    return response.data;
+  }
+};

@@ -1,6 +1,5 @@
 import type { PortServiceOrder, PortOrderStatus } from "@/lib/interfaces/service-interfaces"
-import { portOrderService } from "@/lib/services/supabase/port-order-service"
-import { authService } from "@/lib/services/supabase/auth-service"
+import apiClient from '@/lib/apiClient';
 
 export interface CreatePortOrderData {
   ctoId: string
@@ -19,6 +18,48 @@ export interface UpdatePortOrderData {
   contractSignedByOwner?: boolean
   note?: string
 }
+
+export type PortOrderStatus = 
+  | "pending_approval" 
+  | "rejected" 
+  | "contract_generated" 
+  | "contract_signed" 
+  | "installation_scheduled" 
+  | "installation_in_progress" 
+  | "completed" 
+  | "cancelled";
+
+export const portOrderService = {
+  getPortOrders: async (
+    status?: PortOrderStatus,
+    direction?: "incoming" | "outgoing" | "all",
+    ctoId?: string,
+    search?: string
+  ) => {
+    const response = await apiClient.get('/port-orders', { params: { status, direction, ctoId, search } });
+    return response.data;
+  },
+
+  getPortOrderById: async (id: string) => {
+    const response = await apiClient.get(`/port-orders/${id}`);
+    return response.data;
+  },
+
+  createPortOrder: async (data: any) => {
+    const response = await apiClient.post('/port-orders', data);
+    return response.data;
+  },
+
+  updatePortOrder: async (id: string, data: any) => {
+    const response = await apiClient.put(`/port-orders/${id}`, data);
+    return response.data;
+  },
+
+  addNoteToOrder: async (id: string, content: string) => {
+    const response = await apiClient.post(`/port-orders/${id}/notes`, { content });
+    return response.data;
+  }
+};
 
 export class PortOrderService {
   static async getPortOrders(
