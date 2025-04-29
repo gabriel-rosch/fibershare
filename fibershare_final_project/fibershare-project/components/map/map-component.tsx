@@ -3,12 +3,14 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import dynamic from "next/dynamic"
 import { useCTOApi } from "@/lib/hooks/use-cto-api"
-import { Layers, Network, Settings, Map, Home } from "lucide-react"
+import { Layers, Network, Settings, Map, Home, Plus } from "lucide-react"
 import { MapSidebar } from "./map-sidebar"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { CTODrawer } from "./cto-drawer"
-import type { CTO } from "@/lib/interfaces/service-interfaces"
+import type { CTO, ExtendedCTO, CreateCTOData } from "@/lib/interfaces/service-interfaces"
 import 'mapbox-gl/dist/mapbox-gl.css';
+import { CTOForm } from "./cto-form"
+import apiClient from "@/lib/apiClient"
 
 // Configurações do MapBox
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "pk.eyJ1IjoiZ2FicmllbC1yb3NjaCIsImEiOiJjbTZhYWsycXgwbmduMmpxMnV0Z2p3cm43In0.Z25cdO-rQQ86m03_ZCs5vg"
@@ -33,6 +35,8 @@ export function MapComponent() {
   const [selectedCTO, setSelectedCTO] = useState<CTO | null>(null)
   const [selectedPortId, setSelectedPortId] = useState<string | null>(null)
   const { ctos, isLoading, error, refreshData } = useCTOApi()
+  const [isAddingCTO, setIsAddingCTO] = useState(false)
+  const [newCTOCoordinates, setNewCTOCoordinates] = useState<{ lat: number; lng: number } | null>(null)
 
   // Função para lidar com o clique em uma CTO no mapa
   const handleMapCTOClick = (cto: CTO) => {
@@ -55,6 +59,30 @@ export function MapComponent() {
   const handleCloseDrawers = () => {
     setSelectedCTO(null)
     setSelectedPortId(null)
+  }
+
+  // Função para iniciar o modo de adicionar CTO
+  const handleStartAddCTO = () => {
+    setIsAddingCTO(true)
+  }
+
+  // Função para lidar com o clique no mapa quando estiver adicionando CTO
+  const handleMapClick = (coordinates: { lat: number; lng: number }) => {
+    if (isAddingCTO) {
+      setNewCTOCoordinates(coordinates)
+      setIsAddingCTO(false)
+    }
+  }
+
+  // Função para criar nova CTO
+  const handleCreateCTO = async (data: CreateCTOData) => {
+    try {
+      await apiClient.post('/ctos', data);
+      await refreshData();
+      setNewCTOCoordinates(null);
+    } catch (error) {
+      console.error('Erro ao criar CTO:', error);
+    }
   }
 
   // Adicionar logs para debug
@@ -159,6 +187,22 @@ export function MapComponent() {
                 <p>Configurações</p>
               </TooltipContent>
             </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant={isAddingCTO ? "secondary" : "ghost"}
+                  size="icon"
+                  className="h-10 w-10 rounded-full"
+                  onClick={handleStartAddCTO}
+                >
+                  <Plus className="h-5 w-5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="right">
+                <p>Adicionar CTO</p>
+              </TooltipContent>
+            </Tooltip>
           </div>
         </TooltipProvider>
       </div>
@@ -172,6 +216,8 @@ export function MapComponent() {
           className="w-full h-full absolute inset-0"
           ctos={ctos}
           onCTOClick={handleMapCTOClick}
+          isAddingCTO={isAddingCTO}
+          onMapClick={handleMapClick}
         />
 
         {/* Sidebar e Drawers */}
@@ -192,13 +238,22 @@ export function MapComponent() {
           {/* Drawer de CTO */}
           {selectedCTO && !selectedPortId && (
             <CTODrawer
-              selectedCTO={selectedCTO}
+              selectedCTO={selectedCTO as ExtendedCTO}
               onClose={handleCloseDrawers}
               onPortSelect={handlePortSelect}
             />
           )}
         </div>
       </div>
+
+      {newCTOCoordinates && (
+        <CTOForm
+          coordinates={newCTOCoordinates}
+          open={!!newCTOCoordinates}
+          onOpenChange={(open) => !open && setNewCTOCoordinates(null)}
+          onSubmit={handleCreateCTO}
+        />
+      )}
     </div>
   )
 }

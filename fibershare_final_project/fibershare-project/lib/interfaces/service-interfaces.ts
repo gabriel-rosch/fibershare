@@ -251,3 +251,22 @@ export interface ExtendedCTO extends CTO {
   description?: string;
   occupiedPorts: number;
 }
+
+export interface CreateCTOData {
+  name: string;
+  totalPorts: number;
+  status: 'active' | 'inactive' | 'maintenance';
+  location: {
+    lat: number;
+    lng: number;
+  };
+}
+
+export interface ExtendedCTO extends CTO {
+  coordinates: {
+    lat: number;
+    lng: number;
+  };
+  occupiedPorts: number;
+  description?: string;
+}

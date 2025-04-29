@@ -22,6 +22,8 @@ export interface MapboxMapProps {
   className?: string;
   ctos: ExtendedCTO[];
   onCTOClick: (cto: ExtendedCTO) => void;
+  isAddingCTO?: boolean;
+  onMapClick?: (coordinates: { lat: number; lng: number }) => void;
 }
 
 export default function MapboxMap({
@@ -31,6 +33,8 @@ export default function MapboxMap({
   className,
   ctos = [],
   onCTOClick,
+  isAddingCTO = false,
+  onMapClick,
 }: MapboxMapProps) {
   const mapContainer = useRef<HTMLDivElement>(null)
   const map = useRef<mapboxgl.Map | null>(null)
@@ -257,6 +261,31 @@ export default function MapboxMap({
       }
     }
   }, [ctos, onCTOClick])
+
+  useEffect(() => {
+    if (!map.current) return;
+
+    const handleClick = (e: mapboxgl.MapMouseEvent) => {
+      if (isAddingCTO && onMapClick) {
+        onMapClick({
+          lat: e.lngLat.lat,
+          lng: e.lngLat.lng
+        });
+      }
+    };
+
+    map.current.on('click', handleClick);
+
+    return () => {
+      map.current?.off('click', handleClick);
+    };
+  }, [isAddingCTO, onMapClick]);
+
+  // Atualizar o cursor quando estiver no modo de adicionar CTO
+  useEffect(() => {
+    if (!map.current) return;
+    map.current.getCanvas().style.cursor = isAddingCTO ? 'crosshair' : 'pointer';
+  }, [isAddingCTO]);
 
   return (
     <div 
