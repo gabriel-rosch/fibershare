@@ -1,0 +1,227 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Modelo de usuário
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      String   // "admin", "operator_admin", "operator_user", "client"
+  status    String   // "active", "inactive"
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  lastLogin DateTime? @map("last_login")
+
+  // Relação com a operadora (para funcionários)
+  operatorId String? @map("operator_id")
+  operator   Operator? @relation(fields: [operatorId], references: [id])
+
+  // Outras relações
+  sentMessages      ChatMessage[] @relation("SenderMessages")
+  receivedMessages  ChatMessage[] @relation("ReceiverMessages")
+  serviceOrders     ServiceOrder[] @relation("RequesterOrders")
+  targetOrders      ServiceOrder[] @relation("TargetOrders")
+  portOrdersRequested PortServiceOrder[] @relation("RequesterPortOrders")
+  portOrdersOwned     PortServiceOrder[] @relation("OwnerPortOrders")
+  
+  @@map("users")
+}
+
+// Modelo de operadora (antiga Operator)
+model Operator {
+  id                String   @id @default(uuid())
+  name              String
+  logo              String?
+  region            String
+  description       String
+  contactEmail      String   @map("contact_email")
+  contactPhone      String   @map("contact_phone")
+  partnershipStatus String?  @default("none") @map("partnership_status") // "none", "pending", "active"
+  rating            Float    @default(0)
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+  
+  // Relações
+  users             User[]    // Funcionários da operadora
+  ctos              CTO[]
+  
+  @@map("operators")
+}
+
+// Modelo de CTO (Central Terminal Office)
+model CTO {
+  id             String   @id @default(uuid())
+  name           String
+  description    String?
+  totalPorts     Int      @map("total_ports")
+  occupiedPorts  Int      @map("occupied_ports")
+  latitude       Float
+  longitude      Float
+  region         String?
+  status         String   @default("active") // "active", "maintenance", "inactive"
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+  
+  // Relações
+  operatorId     String   @map("operator_id")
+  operator       Operator @relation(fields: [operatorId], references: [id])
+  ports          CTOPort[]
+  
+  @@map("ctos")
+}
+
+// Modelo de porta de CTO
+model CTOPort {
+  id               String   @id @default(uuid())
+  portNumber       Int      @map("port_number")
+  status           String   // "available", "reserved", "occupied", "maintenance"
+  price            Float
+  address          String?
+  plan             String?
+  startDate        DateTime? @map("start_date")
+  endDate          DateTime? @map("end_date")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+  
+  // Relações
+  ctoId            String   @map("cto_id")
+  cto              CTO      @relation(fields: [ctoId], references: [id])
+  currentTenantId  String?  @map("current_tenant_id")
+  portOrders       PortServiceOrder[]
+  
+  @@map("cto_ports")
+}
+
+// Modelo de ordem de serviço
+model ServiceOrder {
+  id            String   @id @default(uuid())
+  type          String   // "partnership_request", "maintenance", "installation", "cancellation", "support", "removal", "other"
+  status        String   // "pending", "in_progress", "completed", "rejected", "cancelled"
+  title         String
+  description   String
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  completedAt   DateTime? @map("completed_at")
+  
+  // Relações
+  requesterId   String   @map("requester_id")
+  requester     User     @relation("RequesterOrders", fields: [requesterId], references: [id])
+  targetId      String   @map("target_id")
+  target        User     @relation("TargetOrders", fields: [targetId], references: [id])
+  notes         ServiceOrderNote[]
+  
+  @@map("service_orders")
+}
+
+// Modelo de nota de ordem de serviço
+model ServiceOrderNote {
+  id            String   @id @default(uuid())
+  content       String
+  createdAt     DateTime @default(now()) @map("created_at")
+  isSystemNote  Boolean  @default(false) @map("is_system_note")
+  
+  // Relações
+  orderId       String   @map("order_id")
+  order         ServiceOrder @relation(fields: [orderId], references: [id])
+  authorId      String   @map("author_id")
+  authorName    String   @map("author_name")
+  
+  @@map("service_order_notes")
+}
+
+// Modelo de ordem de serviço de porta
+model PortServiceOrder {
+  id                      String   @id @default(uuid())
+  status                  String   // "pending_approval", "rejected", "contract_generated", "contract_signed", "installation_scheduled", "installation_in_progress", "completed", "cancelled"
+  scheduledDate           DateTime? @map("scheduled_date")
+  completedDate           DateTime? @map("completed_date")
+  contractUrl             String?  @map("contract_url")
+  contractSignedByRequester Boolean @default(false) @map("contract_signed_by_requester")
+  contractSignedByOwner   Boolean  @default(false) @map("contract_signed_by_owner")
+  price                   Float    // Preço mensal do aluguel
+  installationFee         Float    @map("installation_fee") // Taxa de instalação (única)
+  createdAt               DateTime @default(now()) @map("created_at")
+  updatedAt               DateTime @updatedAt @map("updated_at")
+  
+  // Relações
+  requesterId             String   @map("requester_id")
+  requester               User     @relation("RequesterPortOrders", fields: [requesterId], references: [id])
+  ownerId                 String   @map("owner_id")
+  owner                   User     @relation("OwnerPortOrders", fields: [ownerId], references: [id])
+  portId                  String   @map("port_id")
+  port                    CTOPort  @relation(fields: [portId], references: [id])
+  notes                   PortOrderNote[]
+  
+  @@map("port_service_orders")
+}
+
+// Modelo de nota de ordem de serviço de porta
+model PortOrderNote {
+  id            String   @id @default(uuid())
+  content       String
+  createdAt     DateTime @default(now()) @map("created_at")
+  isSystemNote  Boolean  @default(false) @map("is_system_note")
+  
+  // Relações
+  orderId       String   @map("order_id")
+  order         PortServiceOrder @relation(fields: [orderId], references: [id])
+  authorId      String   @map("author_id")
+  authorName    String   @map("author_name")
+  
+  @@map("port_order_notes")
+}
+
+// Modelo de mensagem de chat
+model ChatMessage {
+  id          String   @id @default(uuid())
+  content     String
+  read        Boolean  @default(false)
+  createdAt   DateTime @default(now()) @map("created_at")
+  
+  // Relações
+  senderId    String   @map("sender_id")
+  sender      User     @relation("SenderMessages", fields: [senderId], references: [id])
+  receiverId  String   @map("receiver_id")
+  receiver    User     @relation("ReceiverMessages", fields: [receiverId], references: [id])
+  
+  @@map("chat_messages")
+}
+
+// Modelo para marketplace
+model MarketplaceListing {
+  id          String   @id @default(uuid())
+  location    String
+  quantity    Int
+  price       Float
+  technology  String
+  available   Int      @default(0)
+  rented      Int      @default(0)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  // Relações
+  ownerId     String   @map("owner_id")
+  
+  @@map("marketplace_listings")
+}
+
+// Modelo para atividades do dashboard
+model Activity {
+  id          String   @id @default(uuid())
+  action      String
+  details     String
+  type        String
+  createdAt   DateTime @default(now()) @map("created_at")
+  
+  @@map("activities")
+}
