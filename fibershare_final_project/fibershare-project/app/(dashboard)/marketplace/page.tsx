@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useTranslations } from "@/lib/i18n/use-translations"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -28,7 +28,7 @@ import {
 } from "lucide-react"
 import { FadeIn } from "@/components/animations/fade-in"
 import { StaggeredList } from "@/components/animations/staggered-list"
-import { HoverCard } from "@/components/animations/hover-card"
+import { HoverCard } from "@/components/ui/hover-card"
 import { useDebounce } from "@/lib/hooks/use-debounce"
 import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "@/components/ui/use-toast"
@@ -42,7 +42,7 @@ import {
 } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useOperators } from "@/lib/hooks/use-operators"
-import type { Operator } from "@/lib/mock-data/operators"
+import type { Operator } from "@/lib/interfaces/service-interfaces"
 import { useServiceOrders } from "@/lib/hooks/use-service-orders"
 
 // Funções auxiliares para substituir as funções removidas de mock-data
@@ -80,24 +80,11 @@ export default function MarketplacePage() {
   const [selectedOperator, setSelectedOperator] = useState<Operator | null>(null)
   const [partnershipNote, setPartnershipNote] = useState("")
 
-  // Usar os hooks para buscar dados
-  const {
-    operators,
-    currentOperator,
-    partners,
-    isLoading: operatorsLoading,
-    isLoadingPartners,
-    error: operatorsError,
-    setSearch,
-    setRegion,
-    setMinRating: setOperatorMinRating,
-    fetchOperators,
-    fetchPartners,
-  } = useOperators({
-    initialSearch: debouncedSearch,
-    initialRegion: selectedRegion !== "all" ? selectedRegion : undefined,
-    initialMinRating: minRating,
-    loadPartners: true,
+  // Usar o hook de operadores
+  const { operators, isLoading: operatorsLoading } = useOperators({
+    search: debouncedSearch,
+    region: selectedRegion !== "all" ? selectedRegion : undefined,
+    minRating
   })
 
   const {
@@ -109,23 +96,28 @@ export default function MarketplacePage() {
     createOrder,
   } = useServiceOrders()
 
+  // Estado para parceiros ativos
+  const [activePartners, setActivePartners] = useState<Operator[]>([])
+
+  // Atualizar parceiros ativos quando operadores mudarem
+  useEffect(() => {
+    const partners = operators.filter(op => op.partnershipStatus === 'active')
+    setActivePartners(partners)
+  }, [operators])
+
   // Função para lidar com a pesquisa
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value)
-    setSearch(e.target.value)
   }
 
   // Função para lidar com a mudança de região
   const handleRegionChange = (value: string) => {
     setSelectedRegion(value)
-    setRegion(value !== "all" ? value : undefined)
   }
 
   // Função para lidar com a mudança de avaliação mínima
   const handleRatingChange = (value: string) => {
-    const rating = value === "all" ? undefined : Number(value)
-    setMinRating(rating)
-    setOperatorMinRating(rating)
+    setMinRating(value === "all" ? undefined : Number(value))
   }
 
   // Função para abrir o diálogo de solicitação de parceria
@@ -167,9 +159,7 @@ export default function MarketplacePage() {
   }
 
   // Renderizar estrelas para avaliação
-  const renderRatingStars = (rating: number | undefined) => {
-    if (rating === undefined) rating = 0
-
+  const renderRatingStars = (rating: number) => {
     const stars = []
     const fullStars = Math.floor(rating)
     const hasHalfStar = rating % 1 >= 0.5
@@ -210,14 +200,14 @@ export default function MarketplacePage() {
             <h1 className="text-3xl font-bold tracking-tight">Marketplace de Parcerias</h1>
             <p className="text-muted-foreground mt-1">Conecte-se com outras operadoras e expanda sua rede</p>
           </div>
-          {currentOperator && (
+          {operators.length > 0 && (
             <div className="flex items-center gap-4">
               <div className="text-right">
-                <p className="text-sm font-medium">{currentOperator.name}</p>
-                <p className="text-xs text-muted-foreground">{currentOperator.ctoCount} CTOs cadastradas</p>
+                <p className="text-sm font-medium">{operators[0].name}</p>
+                <p className="text-xs text-muted-foreground">{operators[0].ctoCount} CTOs cadastradas</p>
               </div>
               <div className="h-10 w-10 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold">
-                {currentOperator.name.charAt(0)}
+                {operators[0].name.charAt(0)}
               </div>
             </div>
           )}
@@ -369,11 +359,11 @@ export default function MarketplacePage() {
             <h2 className="text-xl font-semibold">Meus Parceiros</h2>
             <div className="text-sm text-muted-foreground">
               <Users className="inline-block mr-1 h-4 w-4" />
-              {partners.length} parceiros ativos
+              {activePartners.length} parceiros ativos
             </div>
           </div>
 
-          {isLoadingPartners ? (
+          {operatorsLoading ? (
             <StaggeredList className="grid gap-4 md:grid-cols-2">
               {Array(3)
                 .fill(0)
@@ -408,7 +398,7 @@ export default function MarketplacePage() {
                   </Card>
                 ))}
             </StaggeredList>
-          ) : partners.length === 0 ? (
+          ) : activePartners.length === 0 ? (
             <div className="text-center py-10">
               <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-muted mb-4">
                 <UserCheck className="h-8 w-8 text-muted-foreground" />
@@ -420,7 +410,7 @@ export default function MarketplacePage() {
             </div>
           ) : (
             <StaggeredList className="grid gap-4 md:grid-cols-2">
-              {partners.map((partner) => (
+              {activePartners.map((partner) => (
                 <HoverCard key={partner.id}>
                   <Card className="overflow-hidden">
                     <div className="h-1 bg-gradient-to-r from-[#0066CC] to-[#4D94FF]"></div>
@@ -617,7 +607,7 @@ export default function MarketplacePage() {
                         </div>
                       )}
 
-                      {order.status === "pending" && order.targetId === currentOperator?.id && (
+                      {order.status === "pending" && order.targetId === operators[0].id && (
                         <div className="flex gap-2 mt-4">
                           <Button variant="outline" size="sm" className="flex-1">
                             <XCircle className="mr-1 h-4 w-4" />

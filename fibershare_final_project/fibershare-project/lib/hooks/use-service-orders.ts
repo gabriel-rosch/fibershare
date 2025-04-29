@@ -1,6 +1,8 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
+import { useAuth } from "@/lib/authContext"
+import apiClient from "@/lib/apiClient"
 import type { ServiceOrder, ServiceOrderType, ServiceOrderStatus } from "@/lib/interfaces/service-interfaces"
 
 interface UseServiceOrdersOptions {
@@ -37,99 +39,52 @@ export function useServiceOrders({
   const [type, setType] = useState<ServiceOrderType | undefined>(initialType)
   const [status, setStatus] = useState<ServiceOrderStatus | undefined>(initialStatus)
   const [direction, setDirection] = useState<"incoming" | "outgoing" | "all">(initialDirection)
+  const { user } = useAuth()
 
-  // Função para buscar ordens
   const fetchOrders = useCallback(async () => {
-    setIsLoading(true)
-    setError(null)
-
     try {
-      // Construir a URL com os parâmetros de filtro
-      let url = "/api/service-orders?"
-      const params = new URLSearchParams()
-
-      if (type) params.append("type", type)
-      if (status) params.append("status", status)
-      if (direction) params.append("direction", direction)
-
-      url += params.toString()
-
-      const response = await fetch(url)
-
-      if (!response.ok) {
-        throw new Error(`Erro ao buscar ordens: ${response.statusText}`)
-      }
-
-      const data = await response.json()
-      setOrders(data)
+      setIsLoading(true)
+      const response = await apiClient.get('/service-orders', {
+        params: { direction }
+      })
+      setOrders(response.data)
+      setError(null)
     } catch (err) {
-      console.error("useServiceOrders: Erro ao buscar ordens:", err)
-      setError(err instanceof Error ? err : new Error(String(err)))
-      // Definir uma lista vazia em caso de erro para evitar problemas de renderização
+      console.error('Erro ao buscar ordens:', err)
+      setError(err instanceof Error ? err : new Error('Erro ao buscar ordens'))
       setOrders([])
     } finally {
       setIsLoading(false)
     }
-  }, [type, status, direction])
+  }, [direction])
 
-  // Função para criar uma nova ordem
   const createOrder = async (data: any): Promise<ServiceOrder> => {
     try {
-      const response = await fetch("/api/service-orders", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(data),
-      })
-
-      if (!response.ok) {
-        throw new Error(`Erro ao criar ordem: ${response.statusText}`)
-      }
-
-      const newOrder = await response.json()
-
-      // Atualizar a lista de ordens
-      setOrders((prevOrders) => [newOrder, ...prevOrders])
-      return newOrder
+      const response = await apiClient.post('/service-orders', data)
+      await fetchOrders() // Recarregar ordens após criar uma nova
+      return response.data
     } catch (err) {
-      console.error("useServiceOrders: Erro ao criar ordem:", err)
+      console.error('Erro ao criar ordem:', err)
       throw err
     }
   }
 
-  // Função para atualizar o status de uma ordem
   const updateOrderStatus = async (id: string, newStatus: ServiceOrderStatus, note?: string): Promise<ServiceOrder> => {
     try {
-      const response = await fetch(`/api/service-orders/${id}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ status: newStatus, note }),
-      })
-
-      if (!response.ok) {
-        throw new Error(`Erro ao atualizar ordem: ${response.statusText}`)
-      }
-
-      const updatedOrder = await response.json()
-
-      // Atualizar a lista de ordens
-      setOrders((prevOrders) => prevOrders.map((order) => (order.id === id ? updatedOrder : order)))
-      return updatedOrder
+      const response = await apiClient.patch(`/service-orders/${id}`, { status: newStatus, note })
+      setOrders((prevOrders) => prevOrders.map((order) => (order.id === id ? response.data : order)))
+      return response.data
     } catch (err) {
       console.error(`useServiceOrders: Erro ao atualizar ordem ${id}:`, err)
       throw err
     }
   }
 
-  // Carregar ordens inicialmente se autoLoad for true
   useEffect(() => {
-    if (autoLoad) {
+    if (user) { // Só buscar ordens se houver um usuário autenticado
       fetchOrders()
     }
-  }, [autoLoad, fetchOrders])
+  }, [fetchOrders, user])
 
   return {
     orders,
