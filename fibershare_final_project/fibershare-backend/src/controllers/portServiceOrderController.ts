@@ -252,9 +252,7 @@ export const updatePortServiceOrderStatus = async (req: AuthRequest, res: Respon
         await tx.cTOPort.update({
           where: { id: order.portId },
           data: { 
-            status: 'occupied',
-            currentTenantId: order.requesterId,
-            startDate: new Date(),
+            status: 'occupied'
             // Definir endDate com base no plano, se aplicável
           }
         });
@@ -278,8 +276,7 @@ export const updatePortServiceOrderStatus = async (req: AuthRequest, res: Respon
         await tx.cTOPort.update({
           where: { id: order.portId },
           data: { 
-            status: 'available',
-            currentTenantId: null
+            status: 'available'
           }
         });
       }

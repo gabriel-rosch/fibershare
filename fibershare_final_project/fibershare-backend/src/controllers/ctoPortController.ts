@@ -8,7 +8,7 @@ const prisma = new PrismaClient();
 // Criar nova porta para uma CTO específica
 export const createCTOPort = async (req: AuthRequest, res: Response) => {
   const { ctoId } = req.params;
-  const { portNumber, status = 'available', price = 0, address, plan } = req.body;
+  const { portNumber, status = 'available', price = 0 } = req.body;
   const userId = req.user?.userId;
 
   if (!userId) {
@@ -40,7 +40,7 @@ export const createCTOPort = async (req: AuthRequest, res: Response) => {
 
     // Verificar se o número da porta já existe nesta CTO
     const existingPort = await prisma.cTOPort.findFirst({
-        where: { ctoId: ctoId, portNumber: portNumber }
+        where: { ctoId, number: portNumber }
     });
     if (existingPort) {
         return res.status(409).json({ message: `Porta número ${portNumber} já existe nesta CTO.` });
@@ -55,12 +55,9 @@ export const createCTOPort = async (req: AuthRequest, res: Response) => {
     const newPort = await prisma.cTOPort.create({
       data: {
         ctoId,
-        portNumber,
+        number: portNumber,
         status,
         price,
-        address,
-        plan,
-        // currentTenantId será definido quando alugado
       },
     });
 
@@ -92,7 +89,7 @@ export const getPortsByCTO = async (req: Request, res: Response) => {
 
     const ports = await prisma.cTOPort.findMany({
       where: { ctoId },
-      orderBy: { portNumber: 'asc' }, // Ordenar por número da porta
+      orderBy: { number: 'asc' }, // Mudado de portNumber para number
       // Incluir dados do inquilino atual se necessário
       // include: { currentTenant: true } // Depende de como 'currentTenantId' é mapeado
     });
@@ -164,11 +161,7 @@ export const updateCTOPort = async (req: AuthRequest, res: Response) => {
       where: { id: portId },
       data: {
         status,
-        price,
-        address,
-        plan,
-        currentTenantId,
-        // Atualizar outros campos conforme necessário
+        price
       },
     });
 

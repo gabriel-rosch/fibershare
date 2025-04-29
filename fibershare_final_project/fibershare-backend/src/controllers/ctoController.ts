@@ -3,57 +3,70 @@ import { PrismaClient, Prisma } from '@prisma/client';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { AuthRequest } from '../middlewares/authMiddleware';
 
-const prisma = new PrismaClient();
+const prismaClient = new PrismaClient();
 
 // Criar nova CTO
 export const createCTO = async (req: AuthRequest, res: Response) => {
-  const { name, description, totalPorts, latitude, longitude, region } = req.body;
-  const userId = req.user?.userId;
-
-  if (!userId) {
-    return res.status(401).json({ message: 'Usuário não autenticado.' });
-  }
-
   try {
-    // Buscar o usuário e verificar se pertence a uma operadora
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      include: { operator: true }
-    });
+    const { name, totalPorts, status, location } = req.body;
+    const operatorId = req.user?.operatorId;
 
-    if (!user || !user.operatorId || !user.operator) {
-      return res.status(403).json({ message: 'Usuário não está associado a uma operadora.' });
+    if (!operatorId) {
+      return res.status(401).json({ error: 'Operadora não identificada' });
     }
 
-    // Verificar se o usuário tem permissão (operator_admin)
-    if (user.role !== 'operator_admin') {
-      return res.status(403).json({ message: 'Usuário não tem permissão para criar CTOs.' });
+    // Validações básicas
+    if (!name || !totalPorts || !status || !location) {
+      return res.status(400).json({ error: 'Dados incompletos' });
     }
 
-    const cto = await prisma.cTO.create({
+    if (totalPorts < 1) {
+      return res.status(400).json({ error: 'Número de portas deve ser maior que zero' });
+    }
+
+    // Criar a CTO
+    const cto = await prismaClient.cTO.create({
       data: {
         name,
-        description,
         totalPorts,
-        occupiedPorts: 0,
-        latitude,
-        longitude,
-        region,
-        operatorId: user.operatorId
+        status,
+        latitude: location.lat,
+        longitude: location.lng,
+        operatorId,
+        occupiedPorts: 0, // Inicialmente sem portas ocupadas
       }
     });
 
-    res.status(201).json(cto);
+    // Criar as portas da CTO
+    const ports = Array.from({ length: totalPorts }, (_, i) => ({
+      ctoId: cto.id,
+      number: i + 1,
+      status: 'available',
+    }));
+
+    await prismaClient.cTOPort.createMany({
+      data: ports
+    });
+
+    // Retornar a CTO criada com suas portas
+    const ctoWithPorts = await prismaClient.cTO.findUnique({
+      where: { id: cto.id },
+      include: {
+        ports: true
+      }
+    });
+
+    return res.status(201).json(ctoWithPorts);
   } catch (error) {
     console.error('Erro ao criar CTO:', error);
-    res.status(500).json({ message: 'Erro interno ao criar CTO.' });
+    return res.status(500).json({ error: 'Erro interno do servidor' });
   }
 };
 
 // Listar todas as CTOs
 export const getAllCTOs = async (req: Request, res: Response) => {
   try {
-    const ctos = await prisma.cTO.findMany({
+    const ctos = await prismaClient.cTO.findMany({
       include: { operator: true, ports: true },
     });
     res.status(200).json(ctos);
@@ -67,7 +80,7 @@ export const getAllCTOs = async (req: Request, res: Response) => {
 export const getCTODetails = async (req: Request, res: Response) => {
   const { id } = req.params;
   try {
-    const cto = await prisma.cTO.findUnique({
+    const cto = await prismaClient.cTO.findUnique({
       where: { id },
       include: { operator: true, ports: true },
     });
@@ -84,7 +97,7 @@ export const getCTODetails = async (req: Request, res: Response) => {
 // Atualizar uma CTO
 export const updateCTO = async (req: AuthRequest, res: Response) => {
   const { id } = req.params;
-  const { name, description, totalPorts, latitude, longitude, region, status } = req.body;
+  const { name, totalPorts, latitude, longitude, status } = req.body;
   const userId = req.user?.userId;
 
   if (!userId) {
@@ -92,12 +105,12 @@ export const updateCTO = async (req: AuthRequest, res: Response) => {
   }
 
   try {
-    const user = await prisma.user.findUnique({
+    const user = await prismaClient.user.findUnique({
       where: { id: userId },
       include: { operator: true }
     });
 
-    const cto = await prisma.cTO.findUnique({ 
+    const cto = await prismaClient.cTO.findUnique({ 
       where: { id },
       include: { operator: true }
     });
@@ -114,15 +127,13 @@ export const updateCTO = async (req: AuthRequest, res: Response) => {
         return res.status(400).json({ message: 'Número total de portas não pode ser menor que o número de portas ocupadas.' });
     }
 
-    const updatedCTO = await prisma.cTO.update({
+    const updatedCTO = await prismaClient.cTO.update({
       where: { id },
       data: {
         name,
-        description,
         totalPorts,
         latitude,
         longitude,
-        region,
         status,
       },
     });
@@ -143,12 +154,12 @@ export const deleteCTO = async (req: AuthRequest, res: Response) => {
   }
 
   try {
-    const user = await prisma.user.findUnique({
+    const user = await prismaClient.user.findUnique({
       where: { id: userId },
       include: { operator: true }
     });
 
-    const cto = await prisma.cTO.findUnique({ where: { id }, include: { operator: true } });
+    const cto = await prismaClient.cTO.findUnique({ where: { id }, include: { operator: true } });
     if (!cto) {
       return res.status(404).json({ message: 'CTO não encontrada.' });
     }
@@ -156,12 +167,12 @@ export const deleteCTO = async (req: AuthRequest, res: Response) => {
         return res.status(403).json({ message: 'Usuário não autorizado a deletar esta CTO.' });
     }
 
-    const ports = await prisma.cTOPort.findMany({ where: { ctoId: id, status: 'occupied' } });
+    const ports = await prismaClient.cTOPort.findMany({ where: { ctoId: id, status: 'occupied' } });
     if (ports.length > 0) {
          return res.status(400).json({ message: 'Não é possível deletar CTO com portas ocupadas.' });
     }
 
-    await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    await prismaClient.$transaction(async (tx: Prisma.TransactionClient) => {
         const portOrders = await tx.portServiceOrder.findMany({ where: { port: { ctoId: id } } });
         const portOrderIds = portOrders.map((po: any) => po.id);
         if (portOrderIds.length > 0) {

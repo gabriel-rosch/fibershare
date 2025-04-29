@@ -11,13 +11,14 @@ if (!JWT_SECRET) {
   process.exit(1);
 }
 
+export interface AuthUser {
+  userId: string;
+  operatorId?: string;
+  role: string;
+}
+
 export interface AuthRequest extends Request {
-  user?: {
-    userId: string;
-    email: string;
-    role: string;
-    operatorId?: string;
-  };
+  user?: AuthUser;
 }
 
 interface JWTPayload extends JwtPayload {
@@ -38,7 +39,8 @@ export const authMiddleware = (req: AuthRequest, res: Response, next: NextFuncti
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as JWTPayload;
-    req.user = decoded;
+    req.user = decoded as AuthUser;
+    
     next();
   } catch (error) {
     console.error('Erro na verificação do token:', error);

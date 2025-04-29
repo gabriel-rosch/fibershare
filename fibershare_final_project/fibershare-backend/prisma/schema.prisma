@@ -60,46 +60,36 @@ model Operator {
 
 // Modelo de CTO (Central Terminal Office)
 model CTO {
-  id             String   @id @default(uuid())
-  name           String
-  description    String?
-  totalPorts     Int      @map("total_ports")
-  occupiedPorts  Int      @map("occupied_ports")
-  latitude       Float
-  longitude      Float
-  region         String?
-  status         String   @default("active") // "active", "maintenance", "inactive"
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
-  
-  // Relações
-  operatorId     String   @map("operator_id")
-  operator       Operator @relation(fields: [operatorId], references: [id])
-  ports          CTOPort[]
-  
-  @@map("ctos")
+  id            String     @id @default(cuid())
+  name          String
+  totalPorts    Int
+  occupiedPorts Int       @default(0)
+  status        String    // 'active', 'inactive', 'maintenance'
+  latitude      Float
+  longitude     Float
+  operatorId    String
+  operator      Operator  @relation(fields: [operatorId], references: [id])
+  ports         CTOPort[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([operatorId])
 }
 
 // Modelo de porta de CTO
 model CTOPort {
-  id               String   @id @default(uuid())
-  portNumber       Int      @map("port_number")
-  status           String   // "available", "reserved", "occupied", "maintenance"
-  price            Float
-  address          String?
-  plan             String?
-  startDate        DateTime? @map("start_date")
-  endDate          DateTime? @map("end_date")
-  createdAt        DateTime @default(now()) @map("created_at")
-  updatedAt        DateTime @updatedAt @map("updated_at")
-  
-  // Relações
-  ctoId            String   @map("cto_id")
-  cto              CTO      @relation(fields: [ctoId], references: [id])
-  currentTenantId  String?  @map("current_tenant_id")
-  portOrders       PortServiceOrder[]
-  
-  @@map("cto_ports")
+  id           String   @id @default(cuid())
+  ctoId        String
+  number       Int
+  status       String   // 'available', 'occupied', 'reserved', 'maintenance'
+  clientId     String?
+  price        Float?
+  lastModified DateTime @default(now())
+  cto          CTO     @relation(fields: [ctoId], references: [id], onDelete: Cascade)
+  portOrders   PortServiceOrder[]
+
+  @@unique([ctoId, number])
+  @@index([ctoId])
 }
 
 // Modelo de ordem de serviço

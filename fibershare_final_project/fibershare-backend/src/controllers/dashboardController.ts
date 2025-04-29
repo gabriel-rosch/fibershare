@@ -128,7 +128,9 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
       res.status(200).json(stats);
     } else {
       // Estatísticas para clientes
-      const myRentals = await prisma.cTOPort.count({ where: { currentTenantId: userId } });
+      const myRentals = await prisma.cTOPort.count({ 
+        where: { clientId: userId } 
+      });
       const pendingRequests = await prisma.portServiceOrder.count({ 
         where: { 
           requesterId: userId,
