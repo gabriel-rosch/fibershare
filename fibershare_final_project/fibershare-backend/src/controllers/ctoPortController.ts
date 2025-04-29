@@ -81,17 +81,9 @@ export const createCTOPort = async (req: AuthRequest, res: Response) => {
 export const getPortsByCTO = async (req: Request, res: Response) => {
   const { ctoId } = req.params;
   try {
-    // Verificar se a CTO existe
-    const ctoExists = await prisma.cTO.findUnique({ where: { id: ctoId } });
-    if (!ctoExists) {
-        return res.status(404).json({ message: 'CTO não encontrada.' });
-    }
-
     const ports = await prisma.cTOPort.findMany({
       where: { ctoId },
-      orderBy: { number: 'asc' }, // Mudado de portNumber para number
-      // Incluir dados do inquilino atual se necessário
-      // include: { currentTenant: true } // Depende de como 'currentTenantId' é mapeado
+      orderBy: { number: 'asc' },
     });
     res.status(200).json(ports);
   } catch (error) {

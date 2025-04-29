@@ -28,10 +28,10 @@ export const ctoPortService = {
   },
 
   getPortsByCTOId: async (ctoId: string) => {
-    const response = await apiClient.get(`/ports/cto/${ctoId}/details`);
+    const response = await apiClient.get(`/ctos/${ctoId}/ports`);
     return {
-      ports: response.data.ports,
-      occupiedCount: response.data.occupiedCount
+      ports: response.data,
+      occupiedCount: response.data.filter((port: any) => port.status === 'occupied').length
     };
   },
 

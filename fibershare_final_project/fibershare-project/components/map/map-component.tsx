@@ -11,6 +11,7 @@ import type { CTO, ExtendedCTO, CreateCTOData } from "@/lib/interfaces/service-i
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { CTOForm } from "./cto-form"
 import apiClient from "@/lib/apiClient"
+import { useToast } from "@/components/ui/use-toast"
 
 // Configurações do MapBox
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "pk.eyJ1IjoiZ2FicmllbC1yb3NjaCIsImEiOiJjbTZhYWsycXgwbmduMmpxMnV0Z2p3cm43In0.Z25cdO-rQQ86m03_ZCs5vg"
@@ -37,6 +38,7 @@ export function MapComponent() {
   const { ctos, isLoading, error, refreshData } = useCTOApi()
   const [isAddingCTO, setIsAddingCTO] = useState(false)
   const [newCTOCoordinates, setNewCTOCoordinates] = useState<{ lat: number; lng: number } | null>(null)
+  const { toast } = useToast()
 
   // Função para lidar com o clique em uma CTO no mapa
   const handleMapCTOClick = (cto: CTO) => {
@@ -77,11 +79,23 @@ export function MapComponent() {
   // Função para criar nova CTO
   const handleCreateCTO = async (data: CreateCTOData) => {
     try {
-      await apiClient.post('/ctos', data);
-      await refreshData();
-      setNewCTOCoordinates(null);
-    } catch (error) {
-      console.error('Erro ao criar CTO:', error);
+      const response = await apiClient.post('/ctos', data);
+      if (response.data) {
+        await refreshData();
+        setNewCTOCoordinates(null);
+        toast({
+          title: "CTO criada com sucesso!",
+          description: `A CTO ${response.data.name} foi criada com ${response.data.totalPorts} portas.`,
+          variant: "default",
+        })
+      }
+    } catch (error: any) {
+      console.error('Erro ao criar CTO:', error.response?.data || error);
+      toast({
+        title: "Erro ao criar CTO",
+        description: error.response?.data?.error || "Ocorreu um erro ao criar a CTO",
+        variant: "destructive",
+      })
     }
   }
 

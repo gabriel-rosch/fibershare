@@ -12,7 +12,14 @@ export const createCTO = async (req: AuthRequest, res: Response) => {
     const operatorId = req.user?.operatorId;
 
     if (!operatorId) {
-      return res.status(401).json({ error: 'Operadora não identificada' });
+      return res.status(403).json({ 
+        error: 'Usuário não está vinculado a uma operadora',
+        details: {
+          operatorId,
+          userRole: req.user?.role,
+          userId: req.user?.userId
+        }
+      });
     }
 
     // Validações básicas

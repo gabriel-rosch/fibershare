@@ -28,7 +28,7 @@ export function CTOForm({ coordinates, open, onOpenChange, onSubmit }: CTOFormPr
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState<CreateCTOData>({
     name: '',
-    totalPorts: 0,
+    totalPorts: 1,
     status: 'active',
     location: coordinates
   })
@@ -73,8 +73,11 @@ export function CTOForm({ coordinates, open, onOpenChange, onSubmit }: CTOFormPr
               id="totalPorts"
               type="number"
               min={1}
-              value={formData.totalPorts}
-              onChange={(e) => setFormData({ ...formData, totalPorts: parseInt(e.target.value) })}
+              value={formData.totalPorts.toString()}
+              onChange={(e) => setFormData({ 
+                ...formData, 
+                totalPorts: parseInt(e.target.value) || 1
+              })}
               required
             />
           </div>

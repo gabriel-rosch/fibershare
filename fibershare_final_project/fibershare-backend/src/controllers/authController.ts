@@ -48,6 +48,19 @@ export const registerUser = async (req: Request, res: Response) => {
   }
 };
 
+const generateToken = (user: any) => {
+  return jwt.sign(
+    { 
+      userId: user.id,
+      email: user.email,
+      role: user.role,
+      operatorId: user.operatorId
+    },
+    JWT_SECRET,
+    { expiresIn: '24h' }
+  );
+};
+
 export const loginUser = async (req: Request, res: Response) => {
   const { email, password } = req.body;
 
@@ -58,7 +71,10 @@ export const loginUser = async (req: Request, res: Response) => {
   }
 
   try {
-    const user = await prisma.user.findUnique({ where: { email } });
+    const user = await prisma.user.findUnique({
+      where: { email },
+      include: { operator: true }
+    });
 
     if (!user) {
       return res.status(401).json({ 
@@ -86,12 +102,12 @@ export const loginUser = async (req: Request, res: Response) => {
         data: { lastLogin: new Date() }
     });
 
-    // Gerar token JWT
-    const token = jwt.sign(
-      { userId: user.id, email: user.email, role: user.role },
-      JWT_SECRET,
-      { expiresIn: '1h' } // Token expira em 1 hora
-    );
+    const token = generateToken({
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      operatorId: user.operatorId
+    });
 
     // Não retornar a senha no response
     const { password: _, ...userWithoutPassword } = user;

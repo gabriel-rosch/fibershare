@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/authContext"
 import { Sidebar } from "@/components/sidebar"
 import { Header } from "@/components/header"
 import { PageTransition } from "@/components/animations/page-transition"
+import { Toaster } from "@/components/ui/toaster"
 
 export default function DashboardLayout({
   children,
@@ -45,6 +46,7 @@ export default function DashboardLayout({
           </div>
         </main>
       </div>
+      <Toaster />
     </div>
   )
 }
