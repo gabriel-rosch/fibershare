@@ -7,7 +7,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { usePathname } from "next/navigation"
 import { useTranslations } from "@/lib/i18n/use-translations"
-import { useAuthStore, type UserRole } from "@/lib/store/auth-store"
+import { useAuth } from "@/lib/authContext"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 // Adicionar o import para o ícone MessageSquare
@@ -25,6 +25,8 @@ import {
 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 
+type UserRole = "admin" | "operator_admin" | "operator_user" | "client"
+
 type NavItem = {
   title: string
   href: string
@@ -35,7 +37,7 @@ type NavItem = {
 export function Sidebar() {
   const { t } = useTranslations()
   const pathname = usePathname()
-  const { user } = useAuthStore()
+  const { user } = useAuth()
   const [isOpen, setIsOpen] = useState(false)
 
   // Atualizar o array navItems para incluir o link para a página de chat
@@ -44,43 +46,43 @@ export function Sidebar() {
       title: t("common", "dashboard"),
       href: "/dashboard",
       icon: LayoutDashboard,
-      roles: ["admin", "manager", "technician", "viewer"],
+      roles: ["admin", "operator_admin", "operator_user", "client"],
     },
     {
       title: t("common", "marketplace"),
       href: "/marketplace",
       icon: DollarSign,
-      roles: ["admin", "manager", "technician", "viewer"],
+      roles: ["admin"],
     },
     {
       title: t("common", "maps"),
       href: "/map",
       icon: Map,
-      roles: ["admin", "manager", "technician", "viewer"],
+      roles: ["admin"],
     },
     {
       title: "Ordens de Serviço",
       href: "/service-orders",
       icon: FileSignature,
-      roles: ["admin", "manager", "technician", "viewer"],
+      roles: ["admin"],
     },
     {
       title: "Chat",
       href: "/chat",
       icon: MessageSquare,
-      roles: ["admin", "manager", "technician", "viewer"],
+      roles: ["admin"],
     },
     {
       title: t("common", "users"),
       href: "/users",
       icon: Users,
-      roles: ["admin", "manager"],
+      roles: ["admin"],
     },
     {
       title: t("common", "projects"),
       href: "/projects",
       icon: FileText,
-      roles: ["admin", "manager", "technician"],
+      roles: ["admin"],
     },
     {
       title: t("common", "settings"),
@@ -91,7 +93,10 @@ export function Sidebar() {
   ]
 
   // Filter nav items based on user role
-  const filteredNavItems = navItems.filter((item) => user && item.roles.includes(user.role))
+  const filteredNavItems = navItems.filter((item) => {
+    if (!user || !user.role) return false;
+    return item.roles.includes(user.role as UserRole);
+  })
 
   return (
     <>

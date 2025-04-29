@@ -1,6 +1,6 @@
 "use client"
 
-import { useAuthStore } from "@/lib/store/auth-store"
+import { useAuth } from "@/lib/authContext"
 import { useTranslations } from "@/lib/i18n/use-translations"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -17,7 +17,7 @@ import { LanguageSwitcher } from "@/components/language-switcher"
 import { Bell, Search } from "lucide-react"
 
 export function Header() {
-  const { user, signOut } = useAuthStore()
+  const { user, logout } = useAuth()
   const { t } = useTranslations()
 
   return (
@@ -66,7 +66,7 @@ export function Header() {
             <DropdownMenuItem className="cursor-pointer">{t("common", "settings")}</DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
-              onClick={() => signOut()}
+              onClick={() => logout()}
               className="cursor-pointer text-destructive focus:text-destructive"
             >
               {t("common", "logout")}

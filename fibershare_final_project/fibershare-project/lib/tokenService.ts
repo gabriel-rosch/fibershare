@@ -1,14 +1,27 @@
+import { setCookie, getCookie, deleteCookie } from 'cookies-next';
+
 export const tokenService = {
   get: () => {
-    return localStorage.getItem('authToken');
+    return typeof window !== 'undefined' 
+      ? localStorage.getItem('authToken') || getCookie('authToken')
+      : getCookie('authToken');
   },
 
   set: (token: string) => {
-    localStorage.setItem('authToken', token);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('authToken', token);
+    }
+    setCookie('authToken', token, {
+      maxAge: 60 * 60,
+      path: '/'
+    });
   },
 
   remove: () => {
-    localStorage.removeItem('authToken');
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('authToken');
+    }
+    deleteCookie('authToken');
   },
 
   isValid: () => {

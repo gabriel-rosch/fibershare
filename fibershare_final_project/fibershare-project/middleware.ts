@@ -22,9 +22,10 @@ export function middleware(request: NextRequest) {
 // Configurar quais rotas devem passar pelo middleware
 export const config = {
   matcher: [
-    '/dashboard/:path*',
-    '/profile/:path*',
+    '/',
     '/login',
-    '/register'
+    '/register',
+    '/dashboard/:path*',
+    '/profile/:path*'
   ],
 };

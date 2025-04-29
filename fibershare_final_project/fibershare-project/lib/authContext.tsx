@@ -4,6 +4,7 @@ import { createContext, useContext, useState, useEffect, ReactNode } from 'react
 import { login, register, getUserProfile } from '../lib/apiClient';
 import { useRouter } from 'next/navigation';
 import { tokenService } from './tokenService';
+import { setCookie, deleteCookie } from 'cookies-next';
 
 interface AuthContextType {
   user: {
@@ -74,9 +75,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       tokenService.set(token);
+      setCookie('authToken', token, {
+        maxAge: 60 * 60, // 1 hora
+        path: '/'
+      });
+      
       setUser(user);
       
-      // Redirecionar após login bem-sucedido
       router.push('/dashboard');
       
       return user;
@@ -103,6 +108,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logoutUser = () => {
     tokenService.remove();
+    deleteCookie('authToken');
     setUser(null);
     router.push('/login');
   };
