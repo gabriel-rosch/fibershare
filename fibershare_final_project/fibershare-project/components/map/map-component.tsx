@@ -12,23 +12,17 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 import { CTOForm } from "./cto-form"
 import apiClient from "@/lib/apiClient"
 import { useToast } from "@/components/ui/use-toast"
+import { MapLoading } from "./map-loading"
 
 // Configurações do MapBox
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "pk.eyJ1IjoiZ2FicmllbC1yb3NjaCIsImEiOiJjbTZhYWsycXgwbmduMmpxMnV0Z2p3cm43In0.Z25cdO-rQQ86m03_ZCs5vg"
 const LIGHT_STYLE = process.env.NEXT_PUBLIC_MAPBOX_LIGHT_STYLE || "mapbox://styles/mapbox/light-v11"
-const THREE_D_STYLE = process.env.NEXT_PUBLIC_MAPBOX_3D_STYLE || "mapbox://styles/mapbox/satellite-streets-v12"
+const THREE_D_STYLE = process.env.NEXT_PUBLIC_MAPBOX_3D_STYLE || "mapbox://styles/gabriel-rosch/cm6aaq12e005y01qr0lhwagxe"
 
 // Componente de mapa que será carregado apenas no cliente
 const MapboxMapComponent = dynamic(() => import("@/components/map/mapbox-map"), {
   ssr: false,
-  loading: () => (
-    <div className="w-full h-full flex items-center justify-center bg-muted/20">
-      <div className="text-center">
-        <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
-        <p className="text-muted-foreground">Carregando mapa...</p>
-      </div>
-    </div>
-  ),
+  loading: () => <MapLoading />
 })
 
 export function MapComponent() {

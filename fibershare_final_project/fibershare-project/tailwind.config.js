@@ -51,6 +51,22 @@ module.exports = {
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
       },
+      keyframes: {
+        float: {
+          '0%, 100%': { transform: 'translateY(0)' },
+          '50%': { transform: 'translateY(-10px)' },
+        },
+        progress: {
+          '0%': { width: '0%' },
+          '100%': { width: '100%' },
+        },
+      },
+      animation: {
+        'float-delay-1': 'float 3s ease-in-out infinite',
+        'float-delay-2': 'float 3s ease-in-out infinite 1s',
+        'float-delay-3': 'float 3s ease-in-out infinite 2s',
+        'progress': 'progress 2s ease-in-out infinite',
+      },
     },
   },
   plugins: [require("tailwindcss-animate")],
