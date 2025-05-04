@@ -1,11 +1,9 @@
-import { Request, Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import { PrismaClient } from '@prisma/client';
+import { dashboardService } from '../services/dashboardService';
+import { AuthRequest } from '../middlewares/authMiddleware';
 
 const prisma = new PrismaClient();
-
-interface AuthRequest extends Request {
-  user?: { userId: string; email: string; role: string; name?: string };
-}
 
 // Obter estatísticas para o dashboard
 export const getDashboardStats = async (req: AuthRequest, res: Response) => {
@@ -411,5 +409,40 @@ export const getDashboardSummary = async (req: AuthRequest, res: Response) => {
   } catch (error) {
     console.error('Erro ao obter resumo do dashboard:', error);
     res.status(500).json({ message: 'Erro interno do servidor ao obter resumo do dashboard.' });
+  }
+};
+
+export const getOperatorDashboard = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user?.userId;
+    const operatorId = req.user?.operatorId;
+    
+    if (!userId) {
+      return res.status(401).json({ message: 'Usuário não autenticado' });
+    }
+    
+    if (!operatorId) {
+      return res.status(403).json({ message: 'Usuário não está vinculado a uma operadora' });
+    }
+    
+    const dashboardData = await dashboardService.getOperatorDashboard(operatorId);
+    res.status(200).json(dashboardData);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getClientDashboard = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user?.userId;
+    
+    if (!userId) {
+      return res.status(401).json({ message: 'Usuário não autenticado' });
+    }
+    
+    const dashboardData = await dashboardService.getClientDashboard(userId);
+    res.status(200).json(dashboardData);
+  } catch (error) {
+    next(error);
   }
 };

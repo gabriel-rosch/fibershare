@@ -1,246 +1,110 @@
-import { Request, Response } from 'express';
-import { PrismaClient, Prisma } from '@prisma/client';
-import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
+import { Request, Response, NextFunction } from 'express';
+import { z } from 'zod';
+import { ctoPortService } from '../services/ctoPortService';
 import { AuthRequest } from '../middlewares/authMiddleware';
 
-const prisma = new PrismaClient();
+// Schemas de validação
+const createPortSchema = z.object({
+  number: z.number().int().positive(),
+  status: z.enum(['available', 'occupied', 'reserved', 'maintenance']),
+  price: z.number().optional()
+});
 
-// Criar nova porta para uma CTO específica
-export const createCTOPort = async (req: AuthRequest, res: Response) => {
-  const { ctoId } = req.params;
-  const { portNumber, status = 'available', price = 0 } = req.body;
-  const userId = req.user?.userId;
+const updatePortSchema = z.object({
+  status: z.enum(['available', 'occupied', 'reserved', 'maintenance']).optional(),
+  clientId: z.string().optional(),
+  price: z.number().optional()
+});
 
-  if (!userId) {
-    return res.status(401).json({ message: 'Usuário não autenticado.' });
-  }
-
-  if (portNumber === undefined || status === undefined) {
-    return res.status(400).json({ message: 'Número da porta e status são obrigatórios.' });
-  }
-
+export const getPortsByCTO = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      include: { operator: true }
-    });
-
-    const cto = await prisma.cTO.findUnique({ 
-      where: { id: ctoId }, 
-      include: { operator: true } 
-    });
-
-    if (!cto) {
-      return res.status(404).json({ message: 'CTO não encontrada.' });
-    }
-
-    if (!user?.operatorId || user.operatorId !== cto.operatorId) {
-      return res.status(403).json({ message: 'Usuário não autorizado a adicionar portas a esta CTO.' });
-    }
-
-    // Verificar se o número da porta já existe nesta CTO
-    const existingPort = await prisma.cTOPort.findFirst({
-        where: { ctoId, number: portNumber }
-    });
-    if (existingPort) {
-        return res.status(409).json({ message: `Porta número ${portNumber} já existe nesta CTO.` });
-    }
-
-    // Verificar se adicionar esta porta excede o total de portas da CTO
-    const currentPortCount = await prisma.cTOPort.count({ where: { ctoId: ctoId } });
-    if (currentPortCount >= cto.totalPorts) {
-        return res.status(400).json({ message: 'Não é possível adicionar mais portas, capacidade máxima da CTO atingida.' });
-    }
-
-    const newPort = await prisma.cTOPort.create({
-      data: {
-        ctoId,
-        number: portNumber,
-        status,
-        price,
-      },
-    });
-
-    // Atualizar contagem de portas ocupadas/disponíveis na CTO (se necessário, dependendo da lógica)
-    // Exemplo: Se a porta for criada como 'occupied', incrementar occupiedPorts
-    if (status === 'occupied' || status === 'reserved' || status === 'maintenance') {
-        await prisma.cTO.update({
-            where: { id: ctoId },
-            data: { occupiedPorts: { increment: 1 } }
-        });
-    }
-
-    res.status(201).json(newPort);
-  } catch (error) {
-    console.error('Erro ao criar porta de CTO:', error);
-    res.status(500).json({ message: 'Erro interno do servidor ao criar porta de CTO.' });
-  }
-};
-
-// Listar todas as portas de uma CTO específica
-export const getPortsByCTO = async (req: Request, res: Response) => {
-  const { ctoId } = req.params;
-  try {
-    const ports = await prisma.cTOPort.findMany({
-      where: { ctoId },
-      orderBy: { number: 'asc' },
-    });
+    const { ctoId } = req.params;
+    const ports = await ctoPortService.getPortsByCTO(ctoId);
+    
+    // Certifique-se de retornar um array
     res.status(200).json(ports);
   } catch (error) {
-    console.error('Erro ao listar portas da CTO:', error);
-    res.status(500).json({ message: 'Erro interno do servidor ao listar portas da CTO.' });
+    next(error);
   }
 };
 
-// Obter detalhes de uma porta específica
-export const getPortDetails = async (req: Request, res: Response) => {
-  const { portId } = req.params; // Usar portId ou id dependendo da rota
+export const getPortDetails = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const port = await prisma.cTOPort.findUnique({
-      where: { id: portId },
-      include: { cto: { include: { operator: true } } } // Incluir detalhes da CTO e operador
-    });
-    if (!port) {
-      return res.status(404).json({ message: 'Porta não encontrada.' });
-    }
+    const { portId } = req.params;
+    const port = await ctoPortService.getPortDetails(portId);
     res.status(200).json(port);
   } catch (error) {
-    console.error('Erro ao buscar detalhes da porta:', error);
-    res.status(500).json({ message: 'Erro interno do servidor ao buscar detalhes da porta.' });
+    next(error);
   }
 };
 
-// Atualizar uma porta específica
-export const updateCTOPort = async (req: AuthRequest, res: Response) => {
-  const { portId } = req.params;
-  const { status, price, address, plan, currentTenantId /* outros campos */ } = req.body;
-  const userId = req.user?.userId;
-
-  if (!userId) {
-    return res.status(401).json({ message: 'Usuário não autenticado.' });
-  }
-
+export const createCTOPort = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      include: { operator: true }
-    });
+    const { ctoId } = req.params;
+    const userId = req.user?.userId;
 
-    const port = await prisma.cTOPort.findUnique({ where: { id: portId }, include: { cto: { include: { operator: true } } } });
-    if (!port) {
-      return res.status(404).json({ message: 'Porta não encontrada.' });
+    if (!userId) {
+      return res.status(401).json({ message: 'Usuário não autenticado' });
     }
 
-    if (!user?.operatorId || user.operatorId !== port.cto.operatorId) {
-      return res.status(403).json({ message: 'Usuário não autorizado a modificar esta porta.' });
-    }
-
-    // Lógica para atualizar contagem de portas ocupadas na CTO ao mudar o status
-    let occupiedPortsIncrement = 0;
-    const oldStatus = port.status;
-    const newStatus = status;
-
-    const wasOccupied = oldStatus === 'occupied' || oldStatus === 'reserved' || oldStatus === 'maintenance';
-    const isOccupied = newStatus === 'occupied' || newStatus === 'reserved' || newStatus === 'maintenance';
-
-    if (!wasOccupied && isOccupied) {
-        occupiedPortsIncrement = 1;
-    } else if (wasOccupied && !isOccupied) {
-        occupiedPortsIncrement = -1;
-    }
-
-    const updatedPort = await prisma.cTOPort.update({
-      where: { id: portId },
-      data: {
-        status,
-        price
-      },
-    });
-
-    // Atualizar contagem na CTO se o status mudou significativamente
-    if (occupiedPortsIncrement !== 0) {
-        await prisma.cTO.update({
-            where: { id: port.ctoId },
-            data: { occupiedPorts: { increment: occupiedPortsIncrement } }
-        });
-    }
-
-    res.status(200).json(updatedPort);
-  } catch (error) {
-    console.error('Erro ao atualizar porta de CTO:', error);
-    res.status(500).json({ message: 'Erro interno do servidor ao atualizar porta de CTO.' });
-  }
-};
-
-// Deletar uma porta específica
-export const deleteCTOPort = async (req: AuthRequest, res: Response) => {
-  const { portId } = req.params;
-  const userId = req.user?.userId;
-
-  if (!userId) {
-    return res.status(401).json({ message: 'Usuário não autenticado.' });
-  }
-
-  try {
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      include: { operator: true }
-    });
-
-    const port = await prisma.cTOPort.findUnique({ where: { id: portId }, include: { cto: { include: { operator: true } } } });
-    if (!port) {
-      return res.status(404).json({ message: 'Porta não encontrada.' });
-    }
-
-    if (!user?.operatorId || user.operatorId !== port.cto.operatorId) {
-      return res.status(403).json({ message: 'Usuário não autorizado a deletar esta porta.' });
-    }
-
-    // Verificar se a porta está ocupada ou reservada antes de deletar (regra de negócio)
-    if (port.status === 'occupied' || port.status === 'reserved') {
-      // Verificar se existem PortServiceOrders ativas para esta porta
-      const activeOrders = await prisma.portServiceOrder.findMany({
-          where: {
-              portId: portId,
-              NOT: { status: { in: ['completed', 'cancelled', 'rejected'] } }
-          }
+    const validation = createPortSchema.safeParse(req.body);
+    if (!validation.success) {
+      return res.status(400).json({
+        message: 'Dados inválidos',
+        errors: validation.error.errors
       });
-      if (activeOrders.length > 0) {
-          return res.status(400).json({ message: 'Não é possível deletar a porta pois existem ordens de serviço ativas associadas.' });
-      }
     }
 
-    const oldStatus = port.status;
-    const wasOccupied = oldStatus === 'occupied' || oldStatus === 'reserved' || oldStatus === 'maintenance';
+    const { number, status, price } = validation.data;
+    const port = await ctoPortService.createCTOPort({
+      ctoId,
+      number,
+      status,
+      price
+    }, userId);
 
-    // Usar transação para garantir consistência
-    await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-        // Deletar notas de ordens de serviço associadas
-        const portOrders = await tx.portServiceOrder.findMany({ where: { portId: portId } });
-        const portOrderIds = portOrders.map((po: any) => po.id);
-        if (portOrderIds.length > 0) {
-            await tx.portOrderNote.deleteMany({ where: { orderId: { in: portOrderIds } } });
-        }
-        // Deletar ordens de serviço associadas
-        await tx.portServiceOrder.deleteMany({ where: { portId: portId } });
-        // Deletar a porta
-        await tx.cTOPort.delete({ where: { id: portId } });
-
-        // Atualizar contagem na CTO se a porta estava ocupada/reservada/manutenção
-        if (wasOccupied) {
-            await tx.cTO.update({
-                where: { id: port.ctoId },
-                data: { occupiedPorts: { decrement: 1 } }
-            });
-        }
-    });
-
-    res.status(204).send(); // No content
+    res.status(201).json(port);
   } catch (error) {
-    console.error('Erro ao deletar porta de CTO:', error);
-     if (error instanceof PrismaClientKnownRequestError && (error as any).code === 'P2003') {
-         return res.status(400).json({ message: 'Não é possível deletar a porta pois existem recursos associados.' });
+    next(error);
+  }
+};
+
+export const updateCTOPort = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { portId } = req.params;
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      return res.status(401).json({ message: 'Usuário não autenticado' });
     }
-    res.status(500).json({ message: 'Erro interno do servidor ao deletar porta de CTO.' });
+
+    const validation = updatePortSchema.safeParse(req.body);
+    if (!validation.success) {
+      return res.status(400).json({
+        message: 'Dados inválidos',
+        errors: validation.error.errors
+      });
+    }
+
+    const port = await ctoPortService.updateCTOPort(portId, validation.data, userId);
+    res.status(200).json(port);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteCTOPort = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { portId } = req.params;
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      return res.status(401).json({ message: 'Usuário não autenticado' });
+    }
+
+    await ctoPortService.deleteCTOPort(portId, userId);
+    res.status(204).send();
+  } catch (error) {
+    next(error);
   }
 };

@@ -7,9 +7,9 @@ import ctoRoutes from './routes/ctoRoutes';
 import ctoPortRoutes from './routes/ctoPortRoutes';
 import serviceOrderRoutes from './routes/serviceOrderRoutes';
 import portServiceOrderRoutes from './routes/portServiceOrderRoutes';
-import chatRoutes from './routes/chatRoutes';
 import dashboardRoutes from './routes/dashboardRoutes';
 import operatorRoutes from './routes/operatorRoutes';
+import { errorHandler } from './middlewares/errorHandler';
 // Import other routes as they are created
 // import marketplaceRoutes from './routes/marketplaceRoutes'; // Placeholder if needed
 
@@ -36,10 +36,12 @@ app.use('/api/ctos', ctoRoutes);
 app.use('/api/ports', ctoPortRoutes); // Mount routes for CTO ports
 app.use('/api/service-orders', serviceOrderRoutes);
 app.use('/api/port-orders', portServiceOrderRoutes);
-app.use('/api/chat', chatRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/operators', operatorRoutes);
 // app.use('/api/marketplace', marketplaceRoutes); // Placeholder
+
+// Middleware de tratamento de erros (deve ser o último)
+app.use(errorHandler);
 
 // Start Server
 app.listen(PORT, () => {

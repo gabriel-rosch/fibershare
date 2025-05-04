@@ -1,50 +1,63 @@
-import { Request, Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import { PrismaClient } from '@prisma/client';
 import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';
 import { hashPassword, comparePassword } from '../utils/passwordUtils';
+import { z } from 'zod';
+import { authService } from '../services/authService';
+import { AuthRequest } from '../middlewares/authMiddleware';
+import { userService } from '../services/userService';
 
 dotenv.config();
 const prisma = new PrismaClient();
 const JWT_SECRET = process.env.JWT_SECRET as string;
 
-export const registerUser = async (req: Request, res: Response) => {
-  const { name, email, password, role, operatorId } = req.body;
+// Schemas de validação
+const registerSchema = z.object({
+  name: z.string().min(3, { message: "Nome deve ter pelo menos 3 caracteres" }),
+  email: z.string().email({ message: "Email inválido" }),
+  password: z.string().min(6, { message: "Senha deve ter pelo menos 6 caracteres" }),
+  role: z.enum(["admin", "operator_admin", "operator_user", "client"], {
+    errorMap: () => ({ message: "Função inválida" })
+  }),
+  operatorId: z.string().optional()
+});
 
-  if (!name || !email || !password) {
-    return res.status(400).json({ message: 'Nome, email e senha são obrigatórios.' });
-  }
+const loginSchema = z.object({
+  email: z.string().email({ message: "Email inválido" }),
+  password: z.string().min(1, { message: "Senha é obrigatória" })
+});
 
-  if ((role === 'operator_admin' || role === 'operator_user') && !operatorId) {
-    return res.status(400).json({ message: 'Operadora é obrigatória para usuários de operadora' });
-  }
-
+export const registerUser = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const existingUser = await prisma.user.findUnique({ where: { email } });
-    if (existingUser) {
-      return res.status(409).json({ message: 'Email já cadastrado.' });
+    // Validar dados de entrada
+    const validation = registerSchema.safeParse(req.body);
+    if (!validation.success) {
+      return res.status(400).json({ 
+        message: 'Dados inválidos', 
+        errors: validation.error.errors 
+      });
     }
 
-    const hashedPassword = await hashPassword(password);
+    const userData = validation.data;
+    
+    // Verificar regras específicas
+    if ((userData.role === 'operator_admin' || userData.role === 'operator_user') && !userData.operatorId) {
+      return res.status(400).json({ 
+        message: 'Operadora é obrigatória para usuários de operadora' 
+      });
+    }
 
-    const newUser = await prisma.user.create({
-      data: {
-        name,
-        email,
-        password: hashedPassword,
-        role,
-        status: 'active',
-        operatorId,
-      },
+    // Chamar o serviço
+    const user = await authService.registerUser(userData);
+
+    // Retornar resposta
+    res.status(201).json({ 
+      message: 'Usuário registrado com sucesso!', 
+      user 
     });
-
-    // Não retornar a senha no response
-    const { password: _, ...userWithoutPassword } = newUser;
-
-    res.status(201).json({ message: 'Usuário registrado com sucesso!', user: userWithoutPassword });
   } catch (error) {
-    console.error('Erro ao registrar usuário:', error);
-    res.status(500).json({ message: 'Erro interno do servidor ao registrar usuário.' });
+    next(error);
   }
 };
 
@@ -61,67 +74,51 @@ const generateToken = (user: any) => {
   );
 };
 
-export const loginUser = async (req: Request, res: Response) => {
-  const { email, password } = req.body;
-
-  if (!email || !password) {
-    return res.status(400).json({ 
-      message: 'Email e senha são obrigatórios.' 
-    });
-  }
-
+export const loginUser = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const user = await prisma.user.findUnique({
-      where: { email },
-      include: { operator: true }
-    });
-
-    if (!user) {
-      return res.status(401).json({ 
-        message: 'Email ou senha incorretos.' 
+    // Validar dados de entrada
+    const validation = loginSchema.safeParse(req.body);
+    if (!validation.success) {
+      return res.status(400).json({ 
+        message: 'Dados inválidos', 
+        errors: validation.error.errors 
       });
     }
 
-    const isPasswordValid = await comparePassword(password, user.password);
+    // Chamar o serviço
+    const { token, user } = await authService.loginUser(validation.data);
 
-    if (!isPasswordValid) {
-      return res.status(401).json({ 
-        message: 'Email ou senha incorretos.' 
-      });
-    }
-
-    if (user.status === 'inactive') {
-      return res.status(403).json({ 
-        message: 'Sua conta está inativa. Entre em contato com o suporte.' 
-      });
-    }
-
-    // Atualizar lastLogin
-    await prisma.user.update({
-        where: { id: user.id },
-        data: { lastLogin: new Date() }
-    });
-
-    const token = generateToken({
-      id: user.id,
-      email: user.email,
-      role: user.role,
-      operatorId: user.operatorId
-    });
-
-    // Não retornar a senha no response
-    const { password: _, ...userWithoutPassword } = user;
-
+    // Retornar resposta
     res.status(200).json({ 
       token, 
-      user: userWithoutPassword,
+      user,
       message: 'Login realizado com sucesso!' 
     });
   } catch (error) {
-    console.error('Erro ao fazer login:', error);
-    res.status(500).json({ 
-      message: 'Erro interno do servidor ao fazer login.' 
-    });
+    next(error);
+  }
+};
+
+export const getUserProfile = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user?.userId;
+    
+    if (!userId) {
+      return res.status(401).json({ message: 'Usuário não autenticado' });
+    }
+    
+    // Adicione logs para depuração
+    console.log('Buscando perfil do usuário:', userId);
+    
+    const userProfile = await userService.getUserProfile(userId);
+    
+    // Adicione logs para depuração
+    console.log('Perfil encontrado:', userProfile ? 'Sim' : 'Não');
+    
+    res.status(200).json(userProfile);
+  } catch (error) {
+    console.error('Erro ao buscar perfil do usuário:', error);
+    next(error);
   }
 };
 
