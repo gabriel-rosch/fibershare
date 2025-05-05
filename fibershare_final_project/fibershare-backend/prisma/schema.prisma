@@ -242,6 +242,7 @@ model SubscriptionPlan {
   interval       String    // month, year
   intervalCount  Int       @default(1) @map("interval_count")
   active         Boolean   @default(true) // Se o plano está ativo no seu sistema
+  portsCapacity          Int       @default(0) @map("ports_capacity")
 
   // Relacionamento
   operatorSubscriptions OperatorSubscription[]
