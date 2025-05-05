@@ -1,9 +1,8 @@
-import { PrismaClient } from '@prisma/client';
+import prisma from '../lib/prisma';
 import jwt from 'jsonwebtoken';
 import { hashPassword, comparePassword } from '../utils/passwordUtils';
 import { BadRequestError, NotFoundError, UnauthorizedError, ConflictError, ForbiddenError } from '../middlewares/errorHandler';
 
-const prisma = new PrismaClient();
 const JWT_SECRET = process.env.JWT_SECRET as string;
 
 if (!JWT_SECRET) {
