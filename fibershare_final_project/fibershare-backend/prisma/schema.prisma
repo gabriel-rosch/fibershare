@@ -47,6 +47,7 @@ model Operator {
   rating            Float    @default(0)
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @updatedAt @map("updated_at")
+  email             String   @unique
 
   // Campos para integração com Stripe
   stripeCustomerId     String?   @unique @map("stripe_customer_id")

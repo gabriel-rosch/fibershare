@@ -18,6 +18,7 @@ import { ThemeToggleSimple } from "@/components/theme-toggle-simple"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { useToast } from "@/components/ui/use-toast"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Separator } from "@/components/ui/separator"
 
 // Define the form schema
 const formSchema = z.object({
