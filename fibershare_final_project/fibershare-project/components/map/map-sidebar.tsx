@@ -39,8 +39,7 @@ export function MapSidebar({
 
   // Filtrar CTOs com base no termo de busca
   const filteredCTOs = ctos.filter((cto) =>
-    cto.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    cto.region?.toLowerCase().includes(searchTerm.toLowerCase())
+    cto.name.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
   // Função para lidar com a seleção de CTO
@@ -120,7 +119,6 @@ export function MapSidebar({
                         <div className={`w-2 h-2 rounded-full ${getStatusColor(cto.status)}`} />
                         <div className="flex-1">
                           <p className="text-sm font-medium">{cto.name}</p>
-                          <p className="text-xs text-muted-foreground">{cto.region}</p>
                         </div>
                         <div className="text-xs text-muted-foreground">
                           {cto.totalPorts - cto.occupiedPorts}/{cto.totalPorts}

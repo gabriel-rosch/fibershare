@@ -93,10 +93,6 @@ export function MapComponent() {
     }
   }
 
-  // Adicionar logs para debug
-  console.log('MAPBOX_TOKEN:', MAPBOX_TOKEN);
-  console.log('Rendering map with CTOs:', ctos);
-
   // Verificar se o token existe antes de renderizar
   if (!MAPBOX_TOKEN) {
     return <div>Erro: Token do Mapbox não encontrado</div>;

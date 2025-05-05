@@ -2,9 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Progress } from "@/components/ui/progress"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { AlertCircle, MapPin, Activity, Settings, List } from "lucide-react"
+import { AlertCircle } from "lucide-react"
 import type { CTO, CTOPort } from "@/lib/interfaces/service-interfaces"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetClose } from "@/components/ui/sheet"
 import { ctoPortService } from "@/lib/services/cto-port-service"
@@ -53,19 +51,6 @@ export function CTODrawer({ selectedCTO, onClose, onPortSelect }: CTODrawerProps
     loadPorts()
   }, [selectedCTO?.id])
 
-  // Calcular a porcentagem de ocupação
-  const calculateOccupancy = (cto: ExtendedCTO) => {
-    if (cto.totalPorts <= 0) return 0
-    return Math.round((cto.occupiedPorts / cto.totalPorts) * 100)
-  }
-
-  // Função para obter a cor da ocupação
-  const getOccupancyColor = (percentage: number) => {
-    if (percentage >= 90) return "bg-red-500"
-    if (percentage >= 70) return "bg-yellow-500"
-    return "bg-green-500"
-  }
-
   // Função para obter a cor do status da porta
   const getPortStatusColor = (status: string) => {
     switch (status) {
@@ -107,8 +92,6 @@ export function CTODrawer({ selectedCTO, onClose, onPortSelect }: CTODrawerProps
       </Sheet>
     )
   }
-
-  const occupancyPercentage = calculateOccupancy(selectedCTO)
 
   return (
     <Sheet>

@@ -27,6 +27,7 @@ export interface CTO {
   }
   status: 'active' | 'inactive' | 'maintenance'
   totalPorts: number
+  occupiedPorts: number
   operatorId: string
 }
 
