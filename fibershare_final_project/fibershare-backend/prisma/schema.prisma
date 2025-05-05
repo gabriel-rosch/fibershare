@@ -26,9 +26,6 @@ model User {
   operatorId String? @map("operator_id")
   operator   Operator? @relation(fields: [operatorId], references: [id])
 
-  // Outras relações
-  sentMessages      ChatMessage[] @relation("SenderMessages")
-  receivedMessages  ChatMessage[] @relation("ReceiverMessages")
   serviceOrders     ServiceOrder[] @relation("RequesterOrders")
   targetOrders      ServiceOrder[] @relation("TargetOrders")
   portOrdersRequested PortServiceOrder[] @relation("RequesterPortOrders")
@@ -50,10 +47,18 @@ model Operator {
   rating            Float    @default(0)
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @updatedAt @map("updated_at")
+
+  // Campos para integração com Stripe
+  stripeCustomerId     String?   @unique @map("stripe_customer_id")
+  stripeSubscriptionId String?   @map("stripe_subscription_id") // ID da assinatura Stripe ativa
+  stripePlanId         String?   @map("stripe_plan_id") // ID do Price (plano) Stripe ativo
+  subscriptionStatus   String?   @default("inactive") @map("subscription_status") // active, inactive, canceled, past_due, pending_payment
+
   
   // Relações
   users             User[]    // Funcionários da operadora
   ctos              CTO[]
+  operatorSubscription OperatorSubscription?
   
   @@map("operators")
 }
@@ -171,21 +176,6 @@ model PortOrderNote {
   @@map("port_order_notes")
 }
 
-// Modelo de mensagem de chat
-model ChatMessage {
-  id          String   @id @default(uuid())
-  content     String
-  read        Boolean  @default(false)
-  createdAt   DateTime @default(now()) @map("created_at")
-  
-  // Relações
-  senderId    String   @map("sender_id")
-  sender      User     @relation("SenderMessages", fields: [senderId], references: [id])
-  receiverId  String   @map("receiver_id")
-  receiver    User     @relation("ReceiverMessages", fields: [receiverId], references: [id])
-  
-  @@map("chat_messages")
-}
 
 // Modelo para marketplace
 model MarketplaceListing {
@@ -214,4 +204,50 @@ model Activity {
   createdAt   DateTime @default(now()) @map("created_at")
   
   @@map("activities")
+}
+
+// Modelo para gerenciar a assinatura de cada operadora
+model OperatorSubscription {
+  id                   String    @id @default(uuid())
+  operatorId           String    @unique @map("operator_id")
+  operator             Operator  @relation(fields: [operatorId], references: [id])
+  planId               String    @map("plan_id")
+  plan                 SubscriptionPlan @relation(fields: [planId], references: [id])
+  stripeSubscriptionId String    @unique @map("stripe_subscription_id") // ID da Subscription no Stripe
+  stripeCustomerId     String    @map("stripe_customer_id") // ID do Customer no Stripe
+  status               String    // active, canceled, past_due, trialing etc. (vem do Stripe)
+  currentPeriodStart   DateTime  @map("current_period_start")
+  currentPeriodEnd     DateTime  @map("current_period_end")
+  cancelAtPeriodEnd    Boolean   @default(false) @map("cancel_at_period_end")
+  canceledAt           DateTime? @map("canceled_at")
+  trialStart           DateTime? @map("trial_start")
+  trialEnd             DateTime? @map("trial_end")
+
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+
+  @@map("operator_subscriptions")
+}
+
+
+
+// Modelo para Planos de Assinatura (definidos no Stripe, replicados aqui para referência)
+model SubscriptionPlan {
+  id             String    @id @default(uuid())
+  name           String    // Nome do plano (ex: Básico Mensal)
+  description    String?   // Descrição do plano
+  stripePriceId  String    @unique @map("stripe_price_id") // ID do Price no Stripe
+  price          Decimal   @db.Decimal(10, 2) // Preço (pode ser útil ter aqui)
+  currency       String    @default("BRL")
+  interval       String    // month, year
+  intervalCount  Int       @default(1) @map("interval_count")
+  active         Boolean   @default(true) // Se o plano está ativo no seu sistema
+
+  // Relacionamento
+  operatorSubscriptions OperatorSubscription[]
+
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  @@map("subscription_plans")
 }
