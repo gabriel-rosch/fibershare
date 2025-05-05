@@ -21,7 +21,7 @@ export const getPortsByCTO = async (req: Request, res: Response, next: NextFunct
     const { ctoId } = req.params;
     const ports = await ctoPortService.getPortsByCTO(ctoId);
     
-    // Certifique-se de retornar um array
+    // Retornar o array de portas diretamente
     res.status(200).json(ports);
   } catch (error) {
     next(error);
