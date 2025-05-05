@@ -1,23 +1,34 @@
 import type { Operator } from "@/lib/interfaces/service-interfaces"
-import apiClient from '@/lib/apiClient';
+import { getOperators as fetchOperators, getOperatorById as fetchOperatorById } from '../apiClient';
+import { toast } from '@/components/ui/use-toast';
 
 export const operatorService = {
   getOperators: async () => {
     try {
-      const response = await apiClient.get('/operators');
+      const response = await fetchOperators();
       return response.data;
     } catch (error) {
       console.error('Erro ao buscar operadoras:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar a lista de operadoras.",
+        variant: "destructive"
+      });
       return [];
     }
   },
 
   getOperatorById: async (id: string) => {
     try {
-      const response = await apiClient.get(`/operators/${id}`);
+      const response = await fetchOperatorById(id);
       return response.data;
     } catch (error) {
       console.error('Erro ao buscar operadora:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar os detalhes da operadora.",
+        variant: "destructive"
+      });
       throw error;
     }
   },

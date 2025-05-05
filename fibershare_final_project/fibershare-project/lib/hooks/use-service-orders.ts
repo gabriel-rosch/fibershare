@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { useAuth } from "@/lib/authContext"
-import apiClient from "@/lib/apiClient"
+import { useToast } from "@/components/ui/use-toast";
+import { getServiceOrders, createServiceOrder, updateServiceOrder } from "@/lib/apiClient"
 import type { ServiceOrder, ServiceOrderType, ServiceOrderStatus } from "@/lib/interfaces/service-interfaces"
 
 interface UseServiceOrdersOptions {
@@ -40,42 +41,67 @@ export function useServiceOrders({
   const [status, setStatus] = useState<ServiceOrderStatus | undefined>(initialStatus)
   const [direction, setDirection] = useState<"incoming" | "outgoing" | "all">(initialDirection)
   const { user } = useAuth()
+  const { toast } = useToast();
 
   const fetchOrders = useCallback(async () => {
     try {
       setIsLoading(true)
-      const response = await apiClient.get('/service-orders', {
-        params: { direction }
-      })
+      const response = await getServiceOrders({ direction, type, status })
       setOrders(response.data)
       setError(null)
     } catch (err) {
       console.error('Erro ao buscar ordens:', err)
-      setError(err instanceof Error ? err : new Error('Erro ao buscar ordens'))
+      const errorMessage = err instanceof Error ? err.message : 'Erro ao buscar ordens';
+      setError(err instanceof Error ? err : new Error(errorMessage))
       setOrders([])
+      toast({
+        title: "Erro",
+        description: errorMessage,
+        variant: "destructive"
+      });
     } finally {
       setIsLoading(false)
     }
-  }, [direction])
+  }, [direction, type, status, toast])
 
   const createOrder = async (data: any): Promise<ServiceOrder> => {
     try {
-      const response = await apiClient.post('/service-orders', data)
+      const response = await createServiceOrder(data)
       await fetchOrders() // Recarregar ordens após criar uma nova
+      toast({
+        title: "Sucesso",
+        description: "Ordem de serviço criada com sucesso.",
+      });
       return response.data
     } catch (err) {
       console.error('Erro ao criar ordem:', err)
+      const errorMessage = err instanceof Error ? err.message : 'Erro ao criar ordem de serviço';
+      toast({
+        title: "Erro",
+        description: errorMessage,
+        variant: "destructive"
+      });
       throw err
     }
   }
 
   const updateOrderStatus = async (id: string, newStatus: ServiceOrderStatus, note?: string): Promise<ServiceOrder> => {
     try {
-      const response = await apiClient.patch(`/service-orders/${id}`, { status: newStatus, note })
+      const response = await updateServiceOrder(id, { status: newStatus, note })
       setOrders((prevOrders) => prevOrders.map((order) => (order.id === id ? response.data : order)))
+      toast({
+        title: "Sucesso",
+        description: "Status da ordem atualizado com sucesso.",
+      });
       return response.data
     } catch (err) {
       console.error(`useServiceOrders: Erro ao atualizar ordem ${id}:`, err)
+      const errorMessage = err instanceof Error ? err.message : 'Erro ao atualizar status da ordem';
+      toast({
+        title: "Erro",
+        description: errorMessage,
+        variant: "destructive"
+      });
       throw err
     }
   }

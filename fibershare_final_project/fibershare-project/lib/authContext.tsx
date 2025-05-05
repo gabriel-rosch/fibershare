@@ -6,6 +6,17 @@ import { useRouter } from 'next/navigation';
 import { tokenService } from './tokenService';
 import { setCookie, deleteCookie } from 'cookies-next';
 
+/**
+ * AuthContext - Contexto de Autenticação
+ * 
+ * Este contexto gerencia o estado de autenticação global da aplicação.
+ * Responsabilidades:
+ * - Armazenar o usuário autenticado
+ * - Fornecer métodos para login/logout
+ * - Verificar automaticamente a autenticação ao iniciar a aplicação
+ * - Redirecionar para login quando necessário
+ */
+
 interface AuthContextType {
   user: {
     id: string;

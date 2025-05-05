@@ -1,93 +1,125 @@
 import axios from 'axios';
 import { tokenService } from './tokenService';
 
-// Defina a URL base da sua nova API backend
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
-
-const apiClient = axios.create({
-  baseURL: API_BASE_URL,
+// Criação da instância do axios com configuração base
+const api = axios.create({
+  baseURL: process.env.NEXT_PUBLIC_API_URL || '/api',
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// Interceptor para adicionar o token em todas as requisições
-apiClient.interceptors.request.use((config) => {
+// Interceptor para adicionar o token de autenticação em todas as requisições
+api.interceptors.request.use((config) => {
   const token = tokenService.get();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
-    console.log('Token enviado:', token); // Debug
-  } else {
-    console.log('Token não encontrado'); // Debug
   }
   return config;
 });
 
-// Interceptor para tratar erros de autenticação
-apiClient.interceptors.response.use(
-  (response) => response,
-  async (error) => {
-    if (error.response?.status === 401) {
-      // Verificar se o erro é realmente de token expirado
-      const isTokenExpired = error.response.data?.message?.includes('expired');
-      
-      if (isTokenExpired) {
-        tokenService.remove();
-        if (typeof window !== 'undefined') {
-          window.location.href = '/login';
-        }
-      }
-    }
-    return Promise.reject(error);
-  }
-);
+// API de autenticação
+export const login = async (credentials: { email: string; password: string }) => {
+  return api.post('/auth/login', credentials);
+};
 
-// Funções de serviço para autenticação
-export const register = (userData: any) => apiClient.post('/auth/register', userData);
-export const login = (data: { email: string; password: string }) => apiClient.post('/auth/login', data);
-export const getUserProfile = () => apiClient.get('/users/profile');
-export const updateUserProfile = (profileData: any) => apiClient.put('/users/profile', profileData);
+export const register = async (userData: any) => {
+  return api.post('/auth/register', userData);
+};
 
-// Funções de serviço para CTOs
-export const fetchCTOs = () => apiClient.get('/ctos');
-export const fetchCTODetails = (id: string) => apiClient.get(`/ctos/${id}`);
-export const createCTO = (ctoData: any) => apiClient.post('/ctos', ctoData);
-export const updateCTO = (id: string, ctoData: any) => apiClient.put(`/ctos/${id}`, ctoData);
-export const deleteCTO = (id: string) => apiClient.delete(`/ctos/${id}`);
+export const getUserProfile = async () => {
+  return api.get('/auth/profile');
+};
 
-// Funções de serviço para Portas de CTO
-export const fetchPortsByCTO = (ctoId: string) => apiClient.get(`/ports/cto/${ctoId}`);
-export const fetchPortDetails = (portId: string) => apiClient.get(`/ports/${portId}`);
-export const createCTOPort = (ctoId: string, portData: any) => apiClient.post(`/ports/cto/${ctoId}`, portData);
-export const updateCTOPort = (portId: string, portData: any) => apiClient.put(`/ports/${portId}`, portData);
-export const deleteCTOPort = (portId: string) => apiClient.delete(`/ports/${portId}`);
+// API de CTOs e portas
+export const getCTOs = async (params?: any) => {
+  return api.get('/ctos', { params });
+};
 
-// Funções de serviço para Ordens de Serviço (Genéricas)
-export const fetchServiceOrders = (params?: any) => apiClient.get('/service-orders', { params });
-export const fetchServiceOrderDetails = (orderId: string) => apiClient.get(`/service-orders/${orderId}`);
-export const createServiceOrder = (orderData: any) => apiClient.post('/service-orders', orderData);
-export const updateServiceOrderStatus = (orderId: string, updateData: any) => apiClient.patch(`/service-orders/${orderId}/status`, updateData);
-export const addServiceOrderNote = (orderId: string, noteData: any) => apiClient.post(`/service-orders/${orderId}/notes`, noteData);
+export const getCTOById = async (id: string) => {
+  return api.get(`/ctos/${id}`);
+};
 
-// Funções de serviço para Ordens de Serviço de Porta
-export const fetchPortServiceOrders = (params?: any) => apiClient.get('/port-orders', { params });
-export const fetchPortServiceOrderDetails = (orderId: string) => apiClient.get(`/port-orders/${orderId}`);
-export const createPortServiceOrder = (orderData: any) => apiClient.post('/port-orders', orderData);
-export const updatePortServiceOrderStatus = (orderId: string, updateData: any) => apiClient.patch(`/port-orders/${orderId}/status`, updateData);
-export const addPortServiceOrderNote = (orderId: string, noteData: any) => apiClient.post(`/port-orders/${orderId}/notes`, noteData);
+export const createCTO = async (data: any) => {
+  return api.post('/ctos', data);
+};
 
-// Funções de serviço para Chat
-export const sendMessage = (messageData: any) => apiClient.post('/chat/messages', messageData);
-export const fetchConversation = (otherUserId: string) => apiClient.get(`/chat/conversations/${otherUserId}`);
-export const fetchContacts = () => apiClient.get('/chat/contacts');
+export const updateCTO = async (id: string, data: any) => {
+  return api.put(`/ctos/${id}`, data);
+};
 
-// Funções de serviço para Dashboard
-export const fetchDashboardStats = () => apiClient.get('/dashboard/stats');
-export const fetchDashboardActivities = (params?: any) => apiClient.get('/dashboard/activities', { params });
-export const fetchDashboardQuickActions = () => apiClient.get('/dashboard/quick-actions');
-export const fetchDashboardSummary = () => apiClient.get('/dashboard/summary');
+export const deleteCTO = async (id: string) => {
+  return api.delete(`/ctos/${id}`);
+};
 
-// Adicione outras funções de serviço conforme necessário (ex: Marketplace)
+export const getPortsByCTO = async (ctoId: string) => {
+  return api.get(`/ports/cto/${ctoId}`);
+};
 
-export default apiClient;
+export const getPortDetails = async (portId: string) => {
+  return api.get(`/ports/${portId}`);
+};
+
+export const createPort = async (ctoId: string, data: any) => {
+  return api.post(`/ports/cto/${ctoId}`, data);
+};
+
+export const updatePort = async (portId: string, data: any) => {
+  return api.put(`/ports/${portId}`, data);
+};
+
+export const deletePort = async (portId: string) => {
+  return api.delete(`/ports/${portId}`);
+};
+
+// API de operadoras
+export const getOperators = async (params?: any) => {
+  return api.get('/operators', { params });
+};
+
+// API de ordens de serviço
+export const getServiceOrders = async (params?: any) => {
+  return api.get('/service-orders', { params });
+};
+
+export const createServiceOrder = async (data: any) => {
+  return api.post('/service-orders', data);
+};
+
+export const updateServiceOrder = async (id: string, data: any) => {
+  return api.put(`/service-orders/${id}`, data);
+};
+
+// API de ordens de serviço de portas
+export const getPortOrders = async (params?: any) => {
+  return api.get('/port-orders', { params });
+};
+
+export const createPortOrder = async (data: any) => {
+  return api.post('/port-orders', data);
+};
+
+export const updatePortOrder = async (id: string, data: any) => {
+  return api.put(`/port-orders/${id}`, data);
+};
+
+// API de Dashboard
+export const fetchDashboardStats = async () => {
+  return api.get('/dashboard/stats');
+};
+
+export const fetchDashboardActivities = async (params?: any) => {
+  return api.get('/dashboard/activities', { params });
+};
+
+export const fetchDashboardQuickActions = async () => {
+  return api.get('/dashboard/quick-actions');
+};
+
+export const fetchDashboardSummary = async () => {
+  return api.get('/dashboard/summary');
+};
+
+// Exportar a instância do axios para uso direto em casos específicos
+export default api;
 

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { operatorService } from "@/lib/services/operator-service"
+import { useToast } from "@/components/ui/use-toast";
 import type { Operator } from "@/lib/interfaces/service-interfaces"
 
 interface UseOperatorsOptions {
@@ -21,6 +22,7 @@ export function useOperators(options: UseOperatorsOptions = {}): UseOperatorsRes
   const [operators, setOperators] = useState<Operator[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
+  const { toast } = useToast();
 
   const fetchOperators = useCallback(async () => {
     try {
@@ -29,12 +31,18 @@ export function useOperators(options: UseOperatorsOptions = {}): UseOperatorsRes
       setOperators(data)
       setError(null)
     } catch (err) {
-      setError(err instanceof Error ? err : new Error('Erro ao buscar operadoras'))
+      const errorMessage = err instanceof Error ? err.message : 'Erro ao buscar operadoras';
+      setError(err instanceof Error ? err : new Error(errorMessage))
       setOperators([])
+      toast({
+        title: "Erro",
+        description: errorMessage,
+        variant: "destructive"
+      });
     } finally {
       setIsLoading(false)
     }
-  }, [options.search, options.region, options.minRating])
+  }, [options.search, options.region, options.minRating, toast])
 
   useEffect(() => {
     fetchOperators()

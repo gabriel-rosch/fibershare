@@ -12,6 +12,7 @@ import { MoreVertical } from "lucide-react"
 import type { CTO, CTOPort } from "@/lib/interfaces/service-interfaces"
 import { ctoPortService } from "@/lib/services/cto-port-service"
 import { PortEditDrawer } from "./port-edit-drawer"
+import { toast } from "@/components/ui/use-toast"
 
 interface PortsDrawerProps {
   selectedCTO: CTO | null
@@ -42,25 +43,25 @@ export function PortsDrawer({
   const [error, setError] = useState<string | null>(null)
   const [selectedPort, setSelectedPort] = useState<CTOPort | null>(null)
 
-  useEffect(() => {
-    async function loadPorts() {
-      if (!selectedCTO?.id) return
-      
-      setLoading(true)
-      setError(null)
-      
-      try {
-        const { ports: portsList, occupiedCount } = await ctoPortService.getPortsByCTOId(selectedCTO.id)
-        setPorts(portsList)
-        setOccupiedCount(occupiedCount)
-      } catch (err) {
-        console.error("Erro ao carregar portas:", err)
-        setError("Erro ao carregar portas")
-      } finally {
-        setLoading(false)
-      }
+  const loadPorts = async () => {
+    setLoading(true);
+    try {
+      const result = await ctoPortService.getPortsByCTOId(selectedCTO?.id || '');
+      setPorts(result.ports);
+      setOccupiedCount(result.occupiedCount);
+    } catch (error) {
+      console.error('Erro ao carregar portas:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar as portas da CTO. Tente novamente mais tarde.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
     }
+  };
 
+  useEffect(() => {
     loadPorts()
   }, [selectedCTO?.id])
 
