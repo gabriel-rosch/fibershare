@@ -11,6 +11,12 @@ interface ExtendedCTO extends CTO {
     lat: number;
     lng: number;
   };
+  location?: {
+    lat: number;
+    lng: number;
+  };
+  latitude?: number;
+  longitude?: number;
   occupiedPorts: number;
   status: 'active' | 'maintenance' | 'inactive';
 }
@@ -196,13 +202,19 @@ export default function MapboxMap({
     return el
   }
 
-  // Atualizar marcadores quando as CTOs mudarem
-  useEffect(() => {
-    if (!map.current || !map.current.loaded()) return
+  // Função para adicionar/atualizar marcadores
+  const updateMarkers = () => {
+    if (!map.current) {
+      console.log('⚠️ Mapa não inicializado ainda');
+      return;
+    }
+
+    console.log('🔄 Atualizando marcadores no mapa. CTOs:', ctos.length);
 
     // Remover marcadores que não existem mais
     Object.entries(markersRef.current).forEach(([id, marker]) => {
       if (!ctos.find(cto => cto.id === id)) {
+        console.log('🗑️ Removendo marcador:', id);
         marker.remove()
         delete markersRef.current[id]
       }
@@ -210,13 +222,29 @@ export default function MapboxMap({
 
     // Adicionar ou atualizar marcadores
     ctos.forEach((cto) => {
-      if (!cto.coordinates) return
+      if (!cto.coordinates && !cto.location) {
+        console.log('⚠️ CTO sem coordenadas:', cto.id, cto.name);
+        return;
+      }
 
-      const coordinates = convertCoordinates(cto.coordinates)
+      // Tentar obter coordenadas de diferentes campos
+      const coords = cto.coordinates || cto.location || {
+        lat: cto.latitude,
+        lng: cto.longitude
+      };
+
+      if (!coords || (!coords.lat && !coords.lng)) {
+        console.log('⚠️ CTO com coordenadas inválidas:', cto.id, coords);
+        return;
+      }
+
+      const coordinates = convertCoordinates(coords);
+      console.log('📍 Processando CTO:', cto.name, 'Coords:', coordinates);
 
       // Se o marcador já existe, apenas atualize sua posição
       if (markersRef.current[cto.id]) {
         markersRef.current[cto.id].setLngLat(coordinates)
+        console.log('🔄 Atualizando posição do marcador:', cto.name);
         return
       }
 
@@ -229,6 +257,8 @@ export default function MapboxMap({
       })
         .setLngLat(coordinates)
         .addTo(map.current!)
+
+      console.log('✅ Marcador adicionado:', cto.name, 'em', coordinates);
 
       // Adicionar apenas o evento de clique
       el.addEventListener('click', () => {
@@ -245,14 +275,20 @@ export default function MapboxMap({
       let validCoordinates = false
 
       ctos.forEach((cto) => {
-        if (cto.coordinates) {
-          const coords = convertCoordinates(cto.coordinates)
-          bounds.extend(coords)
+        const coords = cto.coordinates || cto.location || {
+          lat: cto.latitude,
+          lng: cto.longitude
+        };
+        
+        if (coords && coords.lat && coords.lng) {
+          const mapCoords = convertCoordinates(coords)
+          bounds.extend(mapCoords)
           validCoordinates = true
         }
       })
 
       if (validCoordinates) {
+        console.log('🎯 Ajustando visualização para mostrar todas as CTOs');
         map.current.fitBounds(bounds, {
           padding: { top: 50, bottom: 50, left: 50, right: 350 },
           maxZoom: 15,
@@ -260,7 +296,40 @@ export default function MapboxMap({
         })
       }
     }
+  }
+
+  // Atualizar marcadores quando as CTOs mudarem
+  useEffect(() => {
+    console.log('🔄 useEffect - CTOs mudaram:', ctos.length);
+    
+    if (!map.current) {
+      console.log('⏳ Aguardando mapa carregar...');
+      return;
+    }
+
+    if (map.current.loaded()) {
+      updateMarkers();
+    } else {
+      console.log('⏳ Aguardando mapa carregar completamente...');
+      map.current.once('load', updateMarkers);
+    }
   }, [ctos, onCTOClick])
+
+  // Atualizar marcadores quando o mapa carregar
+  useEffect(() => {
+    if (!map.current) return;
+
+    const handleMapLoad = () => {
+      console.log('🗺️ Mapa carregado! Adicionando marcadores...');
+      updateMarkers();
+    };
+
+    if (map.current.loaded()) {
+      handleMapLoad();
+    } else {
+      map.current.once('load', handleMapLoad);
+    }
+  }, [map.current])
 
   useEffect(() => {
     if (!map.current) return;

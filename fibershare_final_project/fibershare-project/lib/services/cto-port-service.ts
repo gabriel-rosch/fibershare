@@ -1,4 +1,4 @@
-import { getPortsByCTO, getPortDetails, createPort, updatePort, deletePort } from '../apiClient';
+import { getPortsByCTO, getPortDetails, createPort, updatePort, deletePort, reservePort as apiReservePort } from '../apiClient';
 import { toast } from '@/components/ui/use-toast';
 import type { CTOPort } from '@/lib/interfaces/service-interfaces'
 
@@ -53,12 +53,32 @@ export const ctoPortService = {
   },
 
   reservePort: async (portId: string) => {
-    const response = await getPortsByCTO(portId);
-    return response.data;
+    try {
+      console.log('🔄 Reservando porta:', portId);
+      const response = await apiReservePort(portId);
+      console.log('✅ Porta reservada:', response.data);
+      
+      toast({
+        title: "✅ Porta Reservada",
+        description: "A porta foi reservada com sucesso!",
+        duration: 3000,
+      });
+      
+      return response.data;
+    } catch (error) {
+      console.error('❌ Erro ao reservar porta:', error);
+      toast({
+        title: "❌ Erro na Reserva",
+        description: "Não foi possível reservar a porta. Tente novamente.",
+        variant: "destructive",
+        duration: 5000,
+      });
+      throw error;
+    }
   },
 
   getPortById: async (portId: string) => {
-    const response = await getPortsByCTO(portId);
+    const response = await getPortDetails(portId);
     return response.data;
   },
 

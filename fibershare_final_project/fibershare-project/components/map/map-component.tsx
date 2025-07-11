@@ -32,6 +32,7 @@ export function MapComponent() {
   const { ctos, isLoading, error, refreshData } = useCTOApi()
   const [isAddingCTO, setIsAddingCTO] = useState(false)
   const [newCTOCoordinates, setNewCTOCoordinates] = useState<{ lat: number; lng: number } | null>(null)
+  const [newlyCreatedCTOId, setNewlyCreatedCTOId] = useState<string | null>(null)
   const { toast } = useToast()
 
   // Função para lidar com o clique em uma CTO no mapa
@@ -60,6 +61,11 @@ export function MapComponent() {
   // Função para iniciar o modo de adicionar CTO
   const handleStartAddCTO = () => {
     setIsAddingCTO(true)
+    toast({
+      title: "🎯 Modo de Adição de CTO",
+      description: "Clique no mapa onde deseja criar a nova CTO",
+      duration: 3000,
+    });
   }
 
   // Função para lidar com o clique no mapa quando estiver adicionando CTO
@@ -67,26 +73,76 @@ export function MapComponent() {
     if (isAddingCTO) {
       setNewCTOCoordinates(coordinates)
       setIsAddingCTO(false)
+      toast({
+        title: "📍 Localização Selecionada",
+        description: `Lat: ${coordinates.lat.toFixed(6)}, Lng: ${coordinates.lng.toFixed(6)}`,
+        duration: 2000,
+      });
     }
+  }
+
+  // Função para cancelar o modo de adição de CTO
+  const handleCancelAddCTO = () => {
+    setIsAddingCTO(false)
+    setNewCTOCoordinates(null)
+    toast({
+      title: "❌ Modo Cancelado",
+      description: "Adição de CTO cancelada",
+      duration: 2000,
+    });
   }
 
   // Função para criar nova CTO
   const handleCreateCTO = async (data: CreateCTOData) => {
     try {
+      console.log('🔄 Criando CTO com dados:', data);
       const response = await apiClient.post('/ctos', data);
+      console.log('✅ CTO criada com sucesso:', response.data);
+      
+      // Armazenar o ID da CTO recém-criada para destacá-la no mapa
+      const createdCTOId = response.data.id;
+      setNewlyCreatedCTOId(createdCTOId);
+      
+      // Exibir toast de sucesso
       toast({
-        title: "Sucesso!",
-        description: `A CTO "${response.data.name}" foi criada com sucesso.`,
+        title: "🎉 Sucesso!",
+        description: `A CTO "${data.name}" foi criada com sucesso com ${data.totalPorts} portas.`,
+        duration: 5000,
       });
+
+      // Aguardar refresh dos dados para atualizar o mapa
+      console.log('🔄 Atualizando dados do mapa...');
       await refreshData();
+      console.log('✅ Dados do mapa atualizados');
+      
+      // Fechar formulário
       setNewCTOCoordinates(null);
+      
+      // Exibir toast adicional informando que o ponto apareceu no mapa
+      setTimeout(() => {
+        toast({
+          title: "📍 CTO no Mapa",
+          description: "A nova CTO agora está visível no mapa! Abra a sidebar para ver detalhes.",
+          duration: 4000,
+        });
+        
+        // Abrir automaticamente a sidebar para mostrar as CTOs
+        setSidebarOpen(true);
+      }, 1500);
+      
+      // Remover o destaque da CTO recém-criada após 5 segundos
+      setTimeout(() => {
+        setNewlyCreatedCTOId(null);
+      }, 8000);
+      
     } catch (error: any) {
-      console.error('Erro detalhado ao criar CTO:', error.response);
-      const errorMessage = error.response?.data?.error || "Não foi possível criar a CTO. Verifique os dados e suas permissões.";
+      console.error('❌ Erro detalhado ao criar CTO:', error);
+      const errorMessage = error.response?.data?.message || error.response?.data?.error || "Não foi possível criar a CTO. Verifique os dados e suas permissões.";
       toast({
         variant: "destructive",
-        title: "Falha na Criação da CTO",
+        title: "❌ Falha na Criação da CTO",
         description: errorMessage,
+        duration: 5000,
       });
     }
   }
@@ -252,7 +308,16 @@ export function MapComponent() {
         <CTOForm
           coordinates={newCTOCoordinates}
           open={!!newCTOCoordinates}
-          onOpenChange={(open) => !open && setNewCTOCoordinates(null)}
+          onOpenChange={(open) => {
+            if (!open) {
+              setNewCTOCoordinates(null)
+              toast({
+                title: "📝 Formulário Fechado",
+                description: "Criação de CTO cancelada",
+                duration: 2000,
+              });
+            }
+          }}
           onSubmit={handleCreateCTO}
         />
       )}

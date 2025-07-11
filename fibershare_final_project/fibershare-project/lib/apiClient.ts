@@ -90,6 +90,10 @@ export const deletePort = async (portId: string) => {
   return api.delete(`/ports/${portId}`);
 };
 
+export const reservePort = async (portId: string) => {
+  return api.post(`/ports/${portId}/reserve`);
+};
+
 // API de operadoras
 export const getOperators = async (params?: any) => {
   return api.get('/operators', { params });

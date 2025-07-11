@@ -100,16 +100,39 @@ export function PortsDrawer({
   const handleReservePort = async (portId: string) => {
     try {
       setLoading(true)
+      setError(null)
+      
+      console.log('🔄 Iniciando reserva da porta:', portId);
+      
+      // Reservar a porta
       await ctoPortService.reservePort(portId)
+      
+      console.log('✅ Porta reservada com sucesso, recarregando lista...');
+      
       // Recarregar as portas após reservar
       if (selectedCTO?.id) {
         const updatedPorts = await ctoPortService.getPortsByCTOId(selectedCTO.id)
         setPorts(updatedPorts.ports)
         setOccupiedCount(updatedPorts.occupiedCount)
+        console.log('✅ Lista de portas atualizada');
+        
+        toast({
+          title: "🎉 Porta Reservada!",
+          description: "A porta foi reservada com sucesso e a lista foi atualizada.",
+          duration: 3000,
+        });
       }
-    } catch (error) {
-      console.error("Erro ao reservar porta:", error)
-      setError("Erro ao reservar porta")
+    } catch (error: any) {
+      console.error("❌ Erro ao reservar porta:", error)
+      const errorMessage = error.response?.data?.message || error.message || "Erro ao reservar porta";
+      setError(errorMessage)
+      
+      toast({
+        title: "❌ Erro na Reserva",
+        description: errorMessage,
+        variant: "destructive",
+        duration: 5000,
+      });
     } finally {
       setLoading(false)
     }

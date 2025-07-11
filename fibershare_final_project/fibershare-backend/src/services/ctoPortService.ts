@@ -18,6 +18,8 @@ interface UpdatePortData {
 
 export const ctoPortService = {
   getPortsByCTO: async (ctoId: string) => {
+    console.log('🔍 Serviço: Buscando CTO com ID:', ctoId);
+    
     const cto = await prisma.cTO.findUnique({
       where: { id: ctoId },
       include: {
@@ -30,9 +32,14 @@ export const ctoPortService = {
       }
     });
 
+    console.log('📊 CTO encontrada:', cto ? 'Sim' : 'Não');
+    
     if (!cto) {
+      console.log('❌ CTO não encontrada com ID:', ctoId);
       throw new NotFoundError('CTO');
     }
+    
+    console.log('✅ CTO encontrada:', cto.name, 'Portas:', cto.ports.length);
 
     return {
       cto: {

@@ -17,28 +17,39 @@ export function useCTOApi() {
   const fetchCTOs = async () => {
     try {
       setIsLoading(true)
+      console.log('🔄 Buscando CTOs...');
       const response = await apiClient.get("/ctos")
       const ctosData = response.data
+      console.log('📡 Dados CTOs recebidos:', ctosData);
 
       // Mapear os dados para o formato da aplicação
       const formattedCTOs: ExtendedCTO[] = ctosData.map((cto: any) => ({
         id: cto.id,
         name: cto.name,
+        coordinates: {
+          lat: cto.latitude || cto.lat,
+          lng: cto.longitude || cto.lng
+        },
+        // Manter também o campo location para compatibilidade
         location: {
-          lat: cto.latitude,
-          lng: cto.longitude
+          lat: cto.latitude || cto.lat,
+          lng: cto.longitude || cto.lng
         },
         status: cto.status,
         totalPorts: cto.totalPorts,
-        operatorId: cto.operatorId,
+        ownerId: cto.operatorId || cto.ownerId,
+        operatorId: cto.operatorId || cto.ownerId,
         description: cto.description,
-        occupiedPorts: cto.occupiedPorts || 0
+        occupiedPorts: cto.occupiedPorts || 0,
+        latitude: cto.latitude || cto.lat,
+        longitude: cto.longitude || cto.lng
       }))
 
+      console.log('✅ CTOs formatadas:', formattedCTOs);
       setCTOs(formattedCTOs)
       setError(null)
     } catch (err: any) {
-      console.error("Erro ao buscar CTOs:", err)
+      console.error("❌ Erro ao buscar CTOs:", err)
       setError(err.message || "Erro ao carregar dados")
     } finally {
       setIsLoading(false)
