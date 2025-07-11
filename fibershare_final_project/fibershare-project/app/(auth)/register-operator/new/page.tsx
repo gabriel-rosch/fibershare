@@ -125,8 +125,16 @@ export default function NewOperatorPage() {
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
+    console.log('🚀 onSubmit chamado!', { 
+      operatorName: values.operatorName,
+      adminEmail: values.adminEmail,
+      stripePriceId: values.stripePriceId 
+    });
+    
     setIsLoading(true);
     try {
+      console.log('📤 Enviando dados completos:', values);
+      
       const response = await fetch('/api/auth/register-operator', {
         method: 'POST',
         headers: {
@@ -141,12 +149,35 @@ export default function NewOperatorPage() {
         throw new Error(data.error || 'Erro ao registrar operadora');
       }
 
-      // Se tiver URL de checkout, redirecionar para o Stripe
+      console.log('✅ Resposta recebida:', data);
+
+      // Se tiver URL de checkout (modo produção), redirecionar para o Stripe
       if (data.checkoutUrl) {
+        toast({
+          title: "Redirecionando...",
+          description: "Você será redirecionado para o pagamento.",
+        });
         window.location.href = data.checkoutUrl;
         return;
       }
 
+      // Se for modo de desenvolvimento ou sucesso direto
+      if (data.success) {
+        toast({
+          title: "Sucesso!",
+          description: data.message || "Operadora registrada com sucesso!",
+        });
+        
+        // Redirecionar conforme indicado pela API
+        if (data.redirectTo) {
+          router.push(data.redirectTo);
+        } else {
+          router.push('/login');
+        }
+        return;
+      }
+
+      // Fallback para sucesso sem dados específicos
       toast({
         title: "Sucesso!",
         description: "Operadora registrada com sucesso.",
@@ -154,7 +185,7 @@ export default function NewOperatorPage() {
       
       router.push('/login');
     } catch (error: any) {
-      console.error('Erro ao registrar operadora:', error);
+      console.error('❌ Erro ao registrar operadora:', error);
       toast({
         variant: "destructive",
         title: "Erro",
@@ -166,26 +197,26 @@ export default function NewOperatorPage() {
   }
 
   // Função para avançar para a próxima aba
-  const nextTab = () => {
+  const nextTab = async () => {
     if (activeTab === "operator") {
       // Validar campos da operadora antes de avançar
-      const operatorFields = ["operatorName", "operatorEmail", "region", "description", "contactEmail", "contactPhone"];
-      const isValid = operatorFields.every(field => form.getFieldState(field as any).invalid !== true);
+      const operatorFields = ["operatorName", "operatorEmail", "region", "description", "contactEmail", "contactPhone"] as const;
+      const isValid = await form.trigger(operatorFields);
+      
+      console.log('🔍 Validação aba operadora:', isValid);
       
       if (isValid) {
         setActiveTab("admin");
-      } else {
-        form.trigger(operatorFields as any);
       }
     } else if (activeTab === "admin") {
       // Validar campos do admin antes de avançar
-      const adminFields = ["adminName", "adminEmail", "adminPassword"];
-      const isValid = adminFields.every(field => form.getFieldState(field as any).invalid !== true);
+      const adminFields = ["adminName", "adminEmail", "adminPassword"] as const;
+      const isValid = await form.trigger(adminFields);
+      
+      console.log('🔍 Validação aba admin:', isValid);
       
       if (isValid) {
         setActiveTab("plan");
-      } else {
-        form.trigger(adminFields as any);
       }
     }
   };
@@ -197,6 +228,48 @@ export default function NewOperatorPage() {
     } else if (activeTab === "plan") {
       setActiveTab("admin");
     }
+  };
+
+  // Função para verificar se pode submeter
+  const canSubmit = () => {
+    const values = form.getValues();
+    
+    // Verificar campos obrigatórios
+    const requiredFields = {
+      operatorName: values.operatorName,
+      operatorEmail: values.operatorEmail,
+      region: values.region,
+      description: values.description,
+      contactEmail: values.contactEmail,
+      contactPhone: values.contactPhone,
+      adminName: values.adminName,
+      adminEmail: values.adminEmail,
+      adminPassword: values.adminPassword,
+      stripePriceId: values.stripePriceId
+    };
+    
+    const emptyFields = Object.entries(requiredFields)
+      .filter(([_, value]) => !value || value.trim().length === 0)
+      .map(([field, _]) => field);
+    
+    const allFieldsFilled = emptyFields.length === 0;
+    const isOnPlanTab = activeTab === "plan";
+    const notLoading = !isLoading;
+    
+    const canSubmitNow = allFieldsFilled && isOnPlanTab && notLoading;
+    
+    console.log('🔍 Debug submit:', {
+      canSubmit: canSubmitNow,
+      allFieldsFilled,
+      isOnPlanTab,
+      notLoading,
+      activeTab,
+      emptyFields,
+      totalFields: Object.keys(requiredFields).length,
+      filledFields: Object.keys(requiredFields).length - emptyFields.length
+    });
+    
+    return canSubmitNow;
   };
 
   return (
@@ -455,7 +528,33 @@ export default function NewOperatorPage() {
                     <Button type="button" variant="outline" onClick={prevTab}>
                       Voltar
                     </Button>
-                    <Button type="submit" disabled={isLoading}>
+                    <Button 
+                      type="submit" 
+                      disabled={!canSubmit()}
+                      onClick={async (e) => {
+                        e.preventDefault();
+                        console.log('🔥 Botão clicado!', {
+                          canSubmit: canSubmit(),
+                          isLoading,
+                          activeTab,
+                          formValues: form.getValues()
+                        });
+                        
+                        // Forçar validação completa antes de submeter
+                        const isValid = await form.trigger();
+                        console.log('🔍 Validação completa:', isValid);
+                        
+                        if (isValid && canSubmit()) {
+                          console.log('🚀 Executando submit manualmente...');
+                          const values = form.getValues();
+                          await onSubmit(values);
+                        } else {
+                          console.log('❌ Validação falhou ou botão não pode submeter');
+                          const errors = form.formState.errors;
+                          console.log('🔍 Erros de validação:', errors);
+                        }
+                      }}
+                    >
                       {isLoading ? "Processando..." : "Finalizar e Pagar"}
                     </Button>
                   </div>

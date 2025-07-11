@@ -1,10 +1,10 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { login, register, getUserProfile } from '../lib/apiClient';
 import { useRouter } from 'next/navigation';
+import { login as apiLogin, getUserProfile, register as apiRegister } from '@/lib/apiClient'; // Renomeei para evitar conflito de nomes
 import { tokenService } from './tokenService';
-import { setCookie, deleteCookie } from 'cookies-next';
+import { useToast } from '@/components/ui/use-toast';
 
 /**
  * AuthContext - Contexto de Autenticação
@@ -18,136 +18,105 @@ import { setCookie, deleteCookie } from 'cookies-next';
  */
 
 interface AuthContextType {
-  user: {
-    id: string;
-    name: string;
-    email: string;
-    role: string;
-    operatorId?: string;
-    operator?: {
-      id: string;
-      name: string;
-    };
-  } | null;
-  isLoading: boolean;
+  user: any;
   isAuthenticated: boolean;
+  isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (userData: any) => Promise<void>;
+  register: (userData: any) => Promise<any>;
   logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<{
-    id: string;
-    name: string;
-    email: string;
-    role: string;
-    operatorId?: string;
-    operator?: {
-      id: string;
-      name: string;
-    };
-  } | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
   const router = useRouter();
-  const [isClient, setIsClient] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
-    setIsClient(true);
-  }, []);
-
-  useEffect(() => {
-    const checkAuth = async () => {
-      if (tokenService.isValid()) {
+    const checkLoggedIn = async () => {
+      const token = tokenService.get();
+      if (token) {
         try {
-          const response = await getUserProfile();
-          setUser(response.data);
+          const { data } = await getUserProfile();
+          setUser(data);
         } catch (error) {
-          console.error('Erro ao verificar autenticação:', error);
+          console.error("Failed to fetch user profile, logging out.", error);
           tokenService.remove();
+          setUser(null);
         }
       }
-      setIsLoading(false);
+      setLoading(false);
     };
-
-    checkAuth();
+    checkLoggedIn();
   }, []);
 
-  const loginUser = async (email: string, password: string) => {
-    setIsLoading(true);
+  const login = async (email: string, password: string) => {
+    setLoading(true);
     try {
-      const response = await login({ email, password });
-      const { token, user } = response.data;
-      
-      if (!token || !user) {
-        throw new Error('Dados de autenticação inválidos');
-      }
-
-      tokenService.set(token);
-      setCookie('authToken', token, {
-        maxAge: 60 * 60, // 1 hora
-        path: '/'
+      const { data } = await apiLogin({ email, password });
+      tokenService.set(data.token);
+      setUser(data.user);
+      toast({ title: "Sucesso", description: "Login realizado com sucesso!" });
+      router.push("/dashboard");
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || "Falha ao fazer login. Verifique suas credenciais.";
+      toast({
+        title: "Erro no Login",
+        description: errorMessage,
+        variant: "destructive",
       });
-      
-      setUser(user);
-      
-      router.push('/dashboard');
-      
-      return user;
-    } catch (error) {
-      console.error('Erro ao fazer login:', error);
-      throw error;
+      throw error; // Re-throw para que o componente saiba que falhou
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
-  const registerUser = async (userData: any) => {
-    setIsLoading(true);
+  const register = async (userData: any) => {
+    setLoading(true);
     try {
-      const response = await register(userData);
-      return response.data;
-    } catch (error) {
-      console.error('Erro ao registrar usuário:', error);
-      throw error;
+      const { data } = await apiRegister(userData);
+      toast({
+        title: "Sucesso",
+        description: "Conta criada com sucesso! Por favor, faça o login.",
+      });
+      return data;
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || "Falha ao registrar. Tente novamente.";
+      toast({
+        title: "Erro no Registro",
+        description: errorMessage,
+        variant: "destructive",
+      });
+      throw error; // Re-throw para o componente
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
-  const logoutUser = () => {
+  const logout = () => {
     tokenService.remove();
-    deleteCookie('authToken');
     setUser(null);
     router.push('/login');
   };
 
-  if (!isClient) {
-    return null; // ou um loading state
-  }
+  const value = {
+    isAuthenticated: !!user,
+    user,
+    isLoading: loading,
+    login,
+    register,
+    logout,
+  };
 
-  return (
-    <AuthContext.Provider
-      value={{
-        user,
-        isLoading,
-        isAuthenticated: !!user,
-        login: loginUser,
-        register: registerUser,
-        logout: logoutUser,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
-  );
-}
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+};
 
-export function useAuth() {
+export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
-}
+};

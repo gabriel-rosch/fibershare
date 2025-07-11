@@ -48,7 +48,7 @@ async function checkDatabase() {
     "users",
   ]
 
-  const results = {}
+  const results: { [key: string]: any } = {}
 
   for (const table of tables) {
     const result = await checkTable(table)

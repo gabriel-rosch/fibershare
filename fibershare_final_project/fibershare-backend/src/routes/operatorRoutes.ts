@@ -43,10 +43,23 @@ router.post('/register', async (req: Request, res: Response, next: NextFunction)
 });
 
 // Rota para obter planos de assinatura disponíveis
-router.get('/subscription-plans', async (_req: Request, res: Response, next: NextFunction) => {
+router.get('/subscription-plans', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const plans = await operatorService.getSubscriptionPlans();
+    // Verificar se deve sincronizar com Stripe
+    const syncFromStripe = req.query.sync === 'true';
+    
+    const plans = await operatorService.getSubscriptionPlans(syncFromStripe);
     res.json(plans);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Rota para sincronizar planos do Stripe
+router.post('/sync-stripe-plans', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    await operatorService.syncSubscriptionPlansFromStripe();
+    res.json({ message: 'Planos sincronizados com sucesso!' });
   } catch (error) {
     next(error);
   }

@@ -659,7 +659,7 @@ async function seedChatParticipants(conversationIds: string[], operatorIds: stri
     const otherOperators = operatorIds.filter((id) => id !== FIBERSHARE_ID)
     const participantCount = Math.floor(Math.random() * 3) + 1
 
-    const selectedOperators = []
+    const selectedOperators: string[] = []
     for (let i = 0; i < participantCount; i++) {
       let operatorId
       do {

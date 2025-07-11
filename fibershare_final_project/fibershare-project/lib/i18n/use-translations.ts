@@ -7,7 +7,7 @@ export function useTranslations() {
   const { language } = useLanguageStore()
 
   function t(section: TranslationKey, key: string): string {
-    return translations[language][section][key] || `${section}.${key}`
+    return (translations[language][section] as any)[key] || `${section}.${key}`
   }
 
   return { t, language }

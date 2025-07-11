@@ -5,10 +5,17 @@ import { BadRequestError, ConflictError } from '../middlewares/errorHandler';
 
 const prisma = new PrismaClient();
 
-// Inicializa o cliente Stripe
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-  apiVersion: '2025-04-30.basil',
-});
+// Verificar se deve usar Stripe ou modo de desenvolvimento
+const isDevelopment = process.env.NODE_ENV === 'development' || process.env.DISABLE_STRIPE === 'true';
+const stripeKey = process.env.STRIPE_SECRET_KEY;
+
+// Inicializa o cliente Stripe apenas se não estiver em modo de desenvolvimento
+let stripe: Stripe | null = null;
+if (!isDevelopment && stripeKey && stripeKey !== 'sk_test_fake_key_for_development') {
+  stripe = new Stripe(stripeKey, {
+    apiVersion: '2025-04-30.basil',
+  });
+}
 
 interface RegisterOperatorData {
   operatorName: string;
@@ -24,7 +31,112 @@ interface RegisterOperatorData {
 }
 
 export const operatorService = {
-  // Registrar uma nova operadora com integração Stripe
+  // Buscar planos do Stripe e sincronizar com o banco
+  syncSubscriptionPlansFromStripe: async () => {
+    try {
+      console.log('🔄 Sincronizando planos do Stripe...');
+      
+      if (!stripe) {
+        console.log('⚠️ Stripe não configurado, pulando sincronização');
+        return false;
+      }
+      
+      // Buscar preços ativos do Stripe
+      const prices = await stripe.prices.list({
+        active: true,
+        type: 'recurring',
+        limit: 100,
+      });
+
+      const products = await stripe.products.list({
+        active: true,
+        limit: 100,
+      });
+
+      const productMap = new Map();
+      products.data.forEach(product => {
+        productMap.set(product.id, product);
+      });
+
+      // Sincronizar com o banco
+      for (const price of prices.data) {
+        const product = productMap.get(price.product);
+        
+        if (product) {
+          // Verificar se o plano já existe
+          const existingPlan = await prisma.subscriptionPlan.findUnique({
+            where: { stripePriceId: price.id }
+          });
+
+          const planData = {
+            name: product.name,
+            description: product.description || '',
+            stripePriceId: price.id,
+            price: price.unit_amount ? price.unit_amount / 100 : 0, // Converter de centavos
+            currency: price.currency.toUpperCase(),
+            interval: price.recurring?.interval || 'month',
+            intervalCount: price.recurring?.interval_count || 1,
+            active: price.active,
+            portsCapacity: product.metadata?.portsCapacity ? 
+              parseInt(product.metadata.portsCapacity) : 100,
+          };
+
+          if (existingPlan) {
+            // Atualizar plano existente
+            await prisma.subscriptionPlan.update({
+              where: { id: existingPlan.id },
+              data: planData,
+            });
+            console.log(`✅ Plano atualizado: ${planData.name}`);
+          } else {
+            // Criar novo plano
+            await prisma.subscriptionPlan.create({
+              data: planData,
+            });
+            console.log(`✅ Plano criado: ${planData.name}`);
+          }
+        }
+      }
+
+      console.log('✅ Sincronização concluída!');
+      return true;
+    } catch (error) {
+      console.error('❌ Erro ao sincronizar planos do Stripe:', error);
+      throw error;
+    }
+  },
+
+  // Processar webhook do Stripe (versão simplificada)
+  handleStripeWebhook: async (event: Stripe.Event) => {
+    try {
+      console.log(`Processando evento: ${event.type}`);
+      
+      switch (event.type) {
+        case 'checkout.session.completed':
+          console.log('Checkout session completado');
+          break;
+        case 'invoice.payment_succeeded':
+          console.log('Pagamento bem-sucedido');
+          break;
+        case 'invoice.payment_failed':
+          console.log('Pagamento falhou');
+          break;
+        case 'customer.subscription.updated':
+          console.log('Subscription atualizada');
+          break;
+        case 'customer.subscription.deleted':
+          console.log('Subscription cancelada');
+          break;
+        default:
+          console.log(`Evento não processado: ${event.type}`);
+      }
+    } catch (error) {
+      console.error('Erro ao processar webhook:', error);
+      throw error;
+    }
+  },
+
+  // Registrar uma nova operadora com integração Stripe (ou modo de desenvolvimento)
   registerOperator: async (data: RegisterOperatorData) => {
     const {
       operatorName,
@@ -38,6 +150,8 @@ export const operatorService = {
       contactEmail,
       contactPhone
     } = data;
+
+    console.log('🚀 Iniciando registro de operadora:', { operatorName, isDevelopment });
 
     // Verificar se operadora já existe
     const existingOperator = await prisma.operator.findUnique({
@@ -71,7 +185,7 @@ export const operatorService = {
           description,
           contactEmail,
           contactPhone,
-          subscriptionStatus: 'pending_payment',
+          subscriptionStatus: isDevelopment ? 'active' : 'pending_payment', // Em dev, já ativo
         }
       });
 
@@ -81,14 +195,30 @@ export const operatorService = {
           name: adminName,
           email: adminEmail,
           password: hashedPassword,
-          role: 'operator_admin',
+          role: 'admin', // Sempre define como admin
           status: 'active',
           operatorId: operator.id
         }
       });
 
+      console.log('✅ Operadora e usuário admin criados:', operator.id);
       return operator;
     });
+
+    // Se estiver em modo de desenvolvimento, retornar sucesso sem Stripe
+    if (isDevelopment) {
+      console.log('🔧 Modo de desenvolvimento: pulando integração Stripe');
+      return {
+        operatorId: newOperator.id,
+        message: 'Operadora registrada com sucesso! (Modo de desenvolvimento)',
+        developmentMode: true
+      };
+    }
+
+    // Modo produção com Stripe
+    if (!stripe) {
+      throw new Error('Stripe não configurado para produção');
+    }
 
     // Criar cliente no Stripe
     const stripeCustomer = await stripe.customers.create({
@@ -134,9 +264,14 @@ export const operatorService = {
     };
   },
 
-  // Obter planos de assinatura disponíveis
-  getSubscriptionPlans: async () => {
+  // Obter planos de assinatura disponíveis (com opção de sincronizar)
+  getSubscriptionPlans: async (syncFromStripe = false) => {
     try {
+      // Se solicitado, sincronizar com Stripe primeiro (apenas se não for desenvolvimento)
+      if (syncFromStripe && !isDevelopment) {
+        await operatorService.syncSubscriptionPlansFromStripe();
+      }
+
       const plans = await prisma.subscriptionPlan.findMany({
         where: { active: true },
         select: {

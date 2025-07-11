@@ -41,7 +41,7 @@ export function PortsDrawer({
   const [occupiedCount, setOccupiedCount] = useState(0)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [selectedPort, setSelectedPort] = useState<CTOPort | null>(null)
+  const [selectedPort, setSelectedPort] = useState<ExtendedCTOPort | null>(null)
 
   const loadPorts = async () => {
     setLoading(true);
@@ -116,7 +116,7 @@ export function PortsDrawer({
   }
 
   // Função para lidar com o clique na porta
-  const handlePortClick = (port: CTOPort) => {
+  const handlePortClick = (port: ExtendedCTOPort) => {
     setSelectedPort(port)
   }
 

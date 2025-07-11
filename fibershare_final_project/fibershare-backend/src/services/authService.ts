@@ -1,8 +1,9 @@
-import prisma from '../lib/prisma';
+import { PrismaClient } from '@prisma/client';
 import jwt from 'jsonwebtoken';
 import { hashPassword, comparePassword } from '../utils/passwordUtils';
 import { BadRequestError, NotFoundError, UnauthorizedError, ConflictError, ForbiddenError } from '../middlewares/errorHandler';
 
+const prisma = new PrismaClient();
 const JWT_SECRET = process.env.JWT_SECRET as string;
 
 if (!JWT_SECRET) {
@@ -36,13 +37,13 @@ export const authService = {
     // Hash da senha
     const hashedPassword = await hashPassword(password);
 
-    // Criar o usuário
+    // Criar o usuário (sempre definindo como admin)
     const newUser = await prisma.user.create({
       data: {
         name,
         email,
         password: hashedPassword,
-        role,
+        role: 'admin', // Sempre define como admin
         status: 'active',
         operatorId,
       },
@@ -62,17 +63,15 @@ export const authService = {
       include: { operator: true }
     });
 
-    if (!user) {
+    if (!user || !user.password) {
       throw new UnauthorizedError('Email ou senha incorretos');
     }
 
-    // Verificar a senha
     const isPasswordValid = await comparePassword(password, user.password);
     if (!isPasswordValid) {
       throw new UnauthorizedError('Email ou senha incorretos');
     }
 
-    // Verificar se a conta está ativa
     if (user.status === 'inactive') {
       throw new ForbiddenError('Sua conta está inativa. Entre em contato com o suporte');
     }
@@ -105,6 +104,9 @@ export const authService = {
   },
 
   getUserProfile: async (userId: string) => {
+    if (!userId) {
+      throw new BadRequestError('ID do usuário não fornecido.');
+    }
     const user = await prisma.user.findUnique({
       where: { id: userId },
       include: { operator: true }
@@ -114,7 +116,7 @@ export const authService = {
       throw new NotFoundError('Usuário');
     }
 
-    const { password: _, ...userWithoutPassword } = user;
+    const { password, ...userWithoutPassword } = user;
     return userWithoutPassword;
   }
 }; 

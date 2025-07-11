@@ -3,7 +3,7 @@ import { tokenService } from './tokenService';
 
 // Criação da instância do axios com configuração base
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || '/api',
+  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -17,6 +17,24 @@ api.interceptors.request.use((config) => {
   }
   return config;
 });
+
+// Interceptor para tratar erros de autenticação
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      const errorCode = error.response.data?.code;
+      // Redirecionar apenas em caso de token inválido ou expirado, não em caso de 'Usuário não encontrado' durante o login
+      if (errorCode === 'token_expired' || errorCode === 'token_invalid' || errorCode === 'token_missing') {
+        tokenService.remove();
+        if (typeof window !== "undefined") {
+          window.location.href = '/login';
+        }
+      }
+    }
+    return Promise.reject(error);
+  }
+);
 
 // API de autenticação
 export const login = async (credentials: { email: string; password: string }) => {
@@ -75,6 +93,10 @@ export const deletePort = async (portId: string) => {
 // API de operadoras
 export const getOperators = async (params?: any) => {
   return api.get('/operators', { params });
+};
+
+export const getOperatorById = async (id: string) => {
+  return api.get(`/operators/${id}`);
 };
 
 // API de ordens de serviço

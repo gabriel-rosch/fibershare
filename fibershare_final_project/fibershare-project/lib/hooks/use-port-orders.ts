@@ -1,7 +1,8 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { portOrderService, type PortOrderStatus } from "@/lib/services/port-order-service"
+import { portOrderService } from "@/lib/services/port-order-service"
+import { type PortOrderStatus } from "@/lib/interfaces/service-interfaces"
 
 interface UsePortOrdersOptions {
   initialStatus?: PortOrderStatus

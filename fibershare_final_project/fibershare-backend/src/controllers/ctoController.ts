@@ -2,18 +2,21 @@ import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { ctoService } from '../services/ctoService';
 import { AuthRequest } from '../middlewares/authMiddleware';
+import { PrismaClient, Prisma } from '@prisma/client';
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
+import { ForbiddenError, BadRequestError } from '../middlewares/errorHandler';
+
+const prisma = new PrismaClient();
 
 // Schemas de validação
 const createCTOSchema = z.object({
   name: z.string().min(3, { message: "Nome deve ter pelo menos 3 caracteres" }),
+  description: z.string().optional(),
   totalPorts: z.number().int().positive({ message: "Número de portas deve ser maior que zero" }),
-  status: z.enum(['active', 'inactive', 'maintenance'], {
-    errorMap: () => ({ message: "Status inválido" })
-  }),
-  location: z.object({
-    lat: z.number(),
-    lng: z.number()
-  })
+  latitude: z.number(),
+  longitude: z.number(),
+  region: z.string().optional(),
+  status: z.enum(['active', 'inactive', 'maintenance']),
 });
 
 const updateCTOSchema = z.object({
@@ -56,73 +59,52 @@ export const getCTODetails = async (req: Request, res: Response, next: NextFunct
 
 export const createCTO = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const validation = createCTOSchema.safeParse(req.body);
-    if (!validation.success) {
-      return res.status(400).json({ 
-        message: 'Dados inválidos', 
-        errors: validation.error.errors 
-      });
-    }
-    
-    const { name, totalPorts, status, location } = validation.data;
-    const operatorId = req.user?.operatorId;
     const userId = req.user?.userId;
-    
+    const operatorId = req.user?.operatorId;
+    const userRole = req.user?.role;
+
     if (!userId) {
-      return res.status(401).json({ message: 'Usuário não autenticado' });
+      return res.status(401).json({ message: 'Usuário não autenticado.' });
     }
-    
+
+    // Apenas 'admin' e 'operator_admin' podem criar CTOs
+    if (userRole !== 'admin' && userRole !== 'operator_admin') {
+      return res.status(403).json({ message: 'Permissão negada para criar CTOs.' });
+    }
+
     if (!operatorId) {
-      return res.status(403).json({ 
-        message: 'Usuário não está vinculado a uma operadora'
-      });
+        return res.status(403).json({ message: 'Usuário não está associado a uma operadora.' });
     }
     
-    const cto = await ctoService.createCTO({
-      name,
-      totalPorts,
-      status,
-      latitude: location.lat,
-      longitude: location.lng,
-      operatorId
-    }, userId);
+    // Validar o corpo da requisição com Zod
+    const validationResult = createCTOSchema.safeParse(req.body);
+    if (!validationResult.success) {
+      return res.status(400).json({ message: 'Dados inválidos', errors: validationResult.error.formErrors });
+    }
     
+    const ctoData = {
+      ...validationResult.data,
+      operatorId: operatorId, // Usa o operatorId do token do usuário
+    };
+
+    const cto = await ctoService.createCTO(ctoData, userId);
     res.status(201).json(cto);
   } catch (error) {
-    next(error);
+    next(error); // Passa o erro para o errorHandler centralizado
   }
 };
 
 export const updateCTO = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  const { id } = req.params;
+  const dataToUpdate = req.body;
+  const userId = req.user?.userId;
+
+  if (!userId) {
+      return next(new ForbiddenError('Usuário não autenticado.'));
+  }
+
   try {
-    const { id } = req.params;
-    const userId = req.user?.userId;
-    
-    if (!userId) {
-      return res.status(401).json({ message: 'Usuário não autenticado' });
-    }
-    
-    const validation = updateCTOSchema.safeParse(req.body);
-    if (!validation.success) {
-      return res.status(400).json({ 
-        message: 'Dados inválidos', 
-        errors: validation.error.errors 
-      });
-    }
-    
-    const { name, totalPorts, status, location } = validation.data;
-    
-    const updateData: any = {};
-    if (name !== undefined) updateData.name = name;
-    if (totalPorts !== undefined) updateData.totalPorts = totalPorts;
-    if (status !== undefined) updateData.status = status;
-    if (location !== undefined) {
-      updateData.latitude = location.lat;
-      updateData.longitude = location.lng;
-    }
-    
-    const updatedCTO = await ctoService.updateCTO(id, updateData, userId);
-    
+    const updatedCTO = await ctoService.updateCTO(id, dataToUpdate, userId);
     res.status(200).json(updatedCTO);
   } catch (error) {
     next(error);
@@ -130,16 +112,15 @@ export const updateCTO = async (req: AuthRequest, res: Response, next: NextFunct
 };
 
 export const deleteCTO = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  const { id } = req.params;
+  const userId = req.user?.userId;
+
+  if (!userId) {
+      return next(new ForbiddenError('Usuário não autenticado.'));
+  }
+
   try {
-    const { id } = req.params;
-    const userId = req.user?.userId;
-    
-    if (!userId) {
-      return res.status(401).json({ message: 'Usuário não autenticado' });
-    }
-    
     await ctoService.deleteCTO(id, userId);
-    
     res.status(204).send();
   } catch (error) {
     next(error);

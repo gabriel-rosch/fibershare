@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { userService } from '../services/userService';
 import { AuthRequest } from '../middlewares/authMiddleware';
+import { authService } from '../services/authService';
 
 // Schemas de validação
 const createUserSchema = z.object({
@@ -35,9 +36,9 @@ export const getUsers = async (req: Request, res: Response, next: NextFunction) 
     const { search, role, operatorId } = req.query;
     
     const users = await userService.getUsers(
-      search as string,
-      role as string,
-      operatorId as string
+      search as string | undefined,
+      role as string | undefined,
+      operatorId as string | undefined
     );
     
     res.status(200).json(users);
@@ -102,7 +103,36 @@ export const deleteUser = async (req: Request, res: Response, next: NextFunction
   }
 };
 
-// Adicione estas funções específicas para rotas de perfil
-export const getUserProfile = getUserById;
-export const updateUserProfile = updateUser;
+// Adicionei esta função para o endpoint /api/auth/profile
+export const getUserProfile = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      return res.status(401).json({ message: 'Usuário não autenticado.' });
+    }
+
+    const userProfile = await authService.getUserProfile(userId);
+    res.status(200).json(userProfile);
+  } catch (error) {
+    console.error('Erro ao buscar perfil do usuário:', error);
+    next(error);
+  }
+};
+
+export const updateUserProfile = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  const userId = req.user?.userId;
+  const { name, email } = req.body;
+
+  if (!userId) {
+    return res.status(401).json({ message: 'Usuário não autenticado.' });
+  }
+
+  try {
+    const updatedUser = await userService.updateUser(userId, { name, email });
+    res.status(200).json({ message: 'Perfil atualizado com sucesso!', user: updatedUser });
+  } catch (error) {
+    next(error);
+  }
+};
 

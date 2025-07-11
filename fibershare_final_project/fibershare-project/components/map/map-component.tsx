@@ -74,22 +74,20 @@ export function MapComponent() {
   const handleCreateCTO = async (data: CreateCTOData) => {
     try {
       const response = await apiClient.post('/ctos', data);
-      if (response.data) {
-        await refreshData();
-        setNewCTOCoordinates(null);
-        toast({
-          title: "CTO criada com sucesso!",
-          description: `A CTO ${response.data.name} foi criada com ${response.data.totalPorts} portas.`,
-          variant: "default",
-        })
-      }
-    } catch (error: any) {
-      console.error('Erro ao criar CTO:', error.response?.data || error);
       toast({
-        title: "Erro ao criar CTO",
-        description: error.response?.data?.error || "Ocorreu um erro ao criar a CTO",
+        title: "Sucesso!",
+        description: `A CTO "${response.data.name}" foi criada com sucesso.`,
+      });
+      await refreshData();
+      setNewCTOCoordinates(null);
+    } catch (error: any) {
+      console.error('Erro detalhado ao criar CTO:', error.response);
+      const errorMessage = error.response?.data?.error || "Não foi possível criar a CTO. Verifique os dados e suas permissões.";
+      toast({
         variant: "destructive",
-      })
+        title: "Falha na Criação da CTO",
+        description: errorMessage,
+      });
     }
   }
 

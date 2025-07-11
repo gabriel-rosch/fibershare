@@ -8,13 +8,13 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { toast } from "@/components/ui/use-toast"
-import { useAuthStore } from "@/lib/store/auth-store"
+import { useAuth } from "@/lib/authContext"
 import { Eye, EyeOff, Lock } from "lucide-react"
 import { motion } from "framer-motion"
 
 export default function FirstAccessPage() {
   const router = useRouter()
-  const { user, isLoading } = useAuthStore()
+  const { user, isLoading } = useAuth()
   const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)

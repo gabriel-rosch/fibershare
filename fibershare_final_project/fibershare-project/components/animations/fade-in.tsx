@@ -5,8 +5,9 @@ import type React from "react"
 import { motion } from "framer-motion"
 import { cn } from "@/lib/utils"
 
-interface FadeInProps extends React.HTMLAttributes<HTMLDivElement> {
+interface FadeInProps {
   children: React.ReactNode
+  className?: string
   direction?: "up" | "down" | "left" | "right" | "none"
   delay?: number
   duration?: number
@@ -20,7 +21,6 @@ export function FadeIn({
   delay = 0,
   duration = 0.3,
   distance = 20,
-  ...props
 }: FadeInProps) {
   const getInitialProps = () => {
     switch (direction) {
@@ -45,7 +45,6 @@ export function FadeIn({
       initial={getInitialProps()}
       animate={{ opacity: 1, x: 0, y: 0 }}
       transition={{ duration, delay, ease: "easeOut" }}
-      {...props}
     >
       {children}
     </motion.div>

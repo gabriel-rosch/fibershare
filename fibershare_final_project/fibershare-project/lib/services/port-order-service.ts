@@ -19,15 +19,7 @@ export interface UpdatePortOrderData {
   note?: string
 }
 
-export type PortOrderStatus = 
-  | "pending_approval" 
-  | "rejected" 
-  | "contract_generated" 
-  | "contract_signed" 
-  | "installation_scheduled" 
-  | "installation_in_progress" 
-  | "completed" 
-  | "cancelled";
+
 
 export const portOrderService = {
   getPortOrders: async (

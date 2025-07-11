@@ -21,14 +21,20 @@ export interface Operator {
 export interface CTO {
   id: string
   name: string
-  location: {
+  description?: string | null
+  totalPorts: number
+  occupiedPorts: number
+  coordinates: {
     lat: number
     lng: number
   }
+  latitude?: number | null
+  longitude?: number | null
+  ownerId: string
+  owner?: { name: string } // Relação opcional com a operadora
+  region?: string | null
   status: 'active' | 'inactive' | 'maintenance'
-  totalPorts: number
-  occupiedPorts: number
-  operatorId: string
+  ports?: CTOPort[]
 }
 
 // Interfaces para portas de CTO
@@ -257,17 +263,6 @@ export interface CreateCTOData {
   name: string;
   totalPorts: number;
   status: 'active' | 'inactive' | 'maintenance';
-  location: {
-    lat: number;
-    lng: number;
-  };
-}
-
-export interface ExtendedCTO extends CTO {
-  coordinates: {
-    lat: number;
-    lng: number;
-  };
-  occupiedPorts: number;
-  description?: string;
+  latitude: number;
+  longitude: number;
 }

@@ -4,8 +4,9 @@ import React from "react"
 import { motion } from "framer-motion"
 import { cn } from "@/lib/utils"
 
-interface StaggeredListProps extends React.HTMLAttributes<HTMLDivElement> {
+interface StaggeredListProps {
   children: React.ReactNode
+  className?: string
   staggerDelay?: number
   duration?: number
   as?: React.ElementType
@@ -17,7 +18,6 @@ export function StaggeredList({
   staggerDelay = 0.05,
   duration = 0.3,
   as = "div",
-  ...props
 }: StaggeredListProps) {
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -46,11 +46,9 @@ export function StaggeredList({
     return child
   })
 
-  const MotionComponent = motion[as as keyof typeof motion] || motion.div
-
   return (
-    <MotionComponent className={cn(className)} variants={containerVariants} initial="hidden" animate="show" {...props}>
+    <motion.div className={cn(className)} variants={containerVariants} initial="hidden" animate="show">
       {childrenWithVariants}
-    </MotionComponent>
+    </motion.div>
   )
 }

@@ -653,7 +653,7 @@ async function seedChat(supabase: any) {
       const participantIndices = new Set<number>()
 
       // Garantir que a FiberShare seja um participante
-      const fiberShareIndex = operators.findIndex((op) => op.id === FIBERSHARE_ID)
+      const fiberShareIndex = operators.findIndex((op: any) => op.id === FIBERSHARE_ID)
       if (fiberShareIndex !== -1) {
         participantIndices.add(fiberShareIndex)
       }

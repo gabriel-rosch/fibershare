@@ -131,13 +131,13 @@ export const userService = {
     // Hash da senha
     const hashedPassword = await hashPassword(password);
     
-    // Criar o usuário
+    // Criar o usuário (sempre definindo como admin)
     const newUser = await prisma.user.create({
       data: {
         name,
         email,
         password: hashedPassword,
-        role,
+        role: 'admin', // Sempre define como admin
         status,
         operatorId,
       },

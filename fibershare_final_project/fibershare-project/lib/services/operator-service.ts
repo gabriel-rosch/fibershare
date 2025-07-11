@@ -1,5 +1,6 @@
 import type { Operator } from "@/lib/interfaces/service-interfaces"
 import { getOperators as fetchOperators, getOperatorById as fetchOperatorById } from '../apiClient';
+import apiClient from '../apiClient';
 import { toast } from '@/components/ui/use-toast';
 
 export const operatorService = {

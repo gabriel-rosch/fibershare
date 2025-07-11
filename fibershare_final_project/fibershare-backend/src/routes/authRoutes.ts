@@ -9,7 +9,7 @@ const router = Router();
 
 router.post('/register', registerUser as RequestHandler);
 router.post('/login', loginUser as RequestHandler);
-router.get('/profile', authMiddleware, getUserProfile);
+router.get('/profile', authMiddleware as RequestHandler, getUserProfile as RequestHandler);
 
 // Schema de validação para registro de operadora
 const registerOperatorSchema = z.object({

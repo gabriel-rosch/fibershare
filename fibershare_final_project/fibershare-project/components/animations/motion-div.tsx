@@ -5,12 +5,13 @@ import type React from "react"
 import { motion } from "framer-motion"
 import { cn } from "@/lib/utils"
 
-interface MotionDivProps extends React.HTMLAttributes<HTMLDivElement> {
+interface MotionDivProps {
   children: React.ReactNode
-  initial?: object
-  animate?: object
-  exit?: object
-  transition?: object
+  className?: string
+  initial?: any
+  animate?: any
+  exit?: any
+  transition?: any
   variants?: any
   layoutId?: string
 }
@@ -24,7 +25,6 @@ export function MotionDiv({
   transition = { duration: 0.3 },
   variants,
   layoutId,
-  ...props
 }: MotionDivProps) {
   return (
     <motion.div
@@ -35,7 +35,6 @@ export function MotionDiv({
       transition={transition}
       variants={variants}
       layoutId={layoutId}
-      {...props}
     >
       {children}
     </motion.div>

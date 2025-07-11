@@ -28,13 +28,11 @@ export function StaggeredTableRows({ children, staggerDelay = 0.05, duration = 0
   // Clone children and add variants
   const childrenWithVariants = React.Children.map(children, (child) => {
     if (React.isValidElement(child)) {
-      return React.cloneElement(child, {
-        initial: "hidden",
-        animate: "show",
-        variants: itemVariants,
-        transition: { duration },
-        ...child.props,
-      })
+      return (
+        <motion.tr variants={itemVariants} key={child.key}>
+          {child}
+        </motion.tr>
+      )
     }
     return child
   })

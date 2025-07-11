@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import type { CreateCTOData } from "@/lib/interfaces/service-interfaces"
 
 interface CTOFormProps {
   coordinates: { lat: number; lng: number }
@@ -14,23 +15,14 @@ interface CTOFormProps {
   onSubmit: (data: CreateCTOData) => Promise<void>
 }
 
-interface CreateCTOData {
-  name: string
-  totalPorts: number
-  status: 'active' | 'inactive' | 'maintenance'
-  location: {
-    lat: number
-    lng: number
-  }
-}
-
 export function CTOForm({ coordinates, open, onOpenChange, onSubmit }: CTOFormProps) {
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState<CreateCTOData>({
     name: '',
     totalPorts: 1,
     status: 'active',
-    location: coordinates
+    latitude: coordinates.lat,
+    longitude: coordinates.lng
   })
 
   const handleSubmit = async (e: React.FormEvent) => {

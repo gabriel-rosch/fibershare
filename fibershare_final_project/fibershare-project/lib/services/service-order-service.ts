@@ -1,6 +1,4 @@
 import type { ServiceOrder, ServiceOrderType, ServiceOrderStatus } from "@/lib/interfaces/service-interfaces"
-import { serviceOrderService } from "@/lib/services/supabase/service-order-service"
-import { authService } from "@/lib/services/supabase/auth-service"
 
 export interface CreateServiceOrderData {
   type: ServiceOrderType
@@ -17,11 +15,7 @@ export class ServiceOrderService {
     direction: "incoming" | "outgoing" | "all" = "all",
   ): Promise<ServiceOrder[]> {
     try {
-      // Verificar se o usuário é um desenvolvedor
-      const isDeveloper = await authService.isDeveloperUser()
-
-      if (isDeveloper) {
-        // Criar dados mockados para desenvolvedores
+      // Usar dados mockados para desenvolvimento
         const mockOrders: ServiceOrder[] = [
           {
             id: "order-001",
@@ -130,11 +124,6 @@ export class ServiceOrderService {
         }
 
         return filteredOrders
-      }
-
-      // Buscar ordens de serviço do Supabase
-      const orders = await serviceOrderService.getServiceOrders(type, status, direction)
-      return orders
     } catch (error) {
       console.error("ServiceOrderService.getServiceOrders error:", error)
       throw error
@@ -143,11 +132,7 @@ export class ServiceOrderService {
 
   static async getServiceOrderById(id: string): Promise<ServiceOrder> {
     try {
-      // Verificar se o usuário é um desenvolvedor
-      const isDeveloper = await authService.isDeveloperUser()
-
-      if (isDeveloper) {
-        // Criar dados mockados para desenvolvedores
+      // Usar dados mockados para desenvolvimento
         const mockOrders: ServiceOrder[] = [
           {
             id: "order-001",
@@ -188,11 +173,6 @@ export class ServiceOrderService {
           throw new Error(`Ordem de serviço com ID ${id} não encontrada`)
         }
         return order
-      }
-
-      // Buscar ordem de serviço do Supabase
-      const order = await serviceOrderService.getServiceOrderById(id)
-      return order
     } catch (error) {
       console.error(`ServiceOrderService.getServiceOrderById error for ID ${id}:`, error)
       throw error
@@ -201,30 +181,21 @@ export class ServiceOrderService {
 
   static async createServiceOrder(data: CreateServiceOrderData): Promise<ServiceOrder> {
     try {
-      // Verificar se o usuário é um desenvolvedor
-      const isDeveloper = await authService.isDeveloperUser()
-
-      if (isDeveloper) {
-        // Criar dados mockados para desenvolvedores
-        return {
-          id: `order-${Date.now()}`,
-          type: data.type,
-          status: "pending",
-          title: data.title,
-          description: data.description,
-          requesterId: "op-007",
-          requesterName: "FiberShare",
-          targetId: data.targetId,
-          targetName: data.targetName,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          notes: ["Solicitação enviada"],
-        }
+      // Usar dados mockados para desenvolvimento
+      return {
+        id: `order-${Date.now()}`,
+        type: data.type,
+        status: "pending",
+        title: data.title,
+        description: data.description,
+        requesterId: "op-007",
+        requesterName: "FiberShare",
+        targetId: data.targetId,
+        targetName: data.targetName,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        notes: ["Solicitação enviada"],
       }
-
-      // Criar ordem de serviço no Supabase
-      const order = await serviceOrderService.createServiceOrder(data)
-      return order
     } catch (error) {
       console.error("ServiceOrderService.createServiceOrder error:", error)
       throw error
@@ -233,29 +204,20 @@ export class ServiceOrderService {
 
   static async updateServiceOrder(id: string, status: ServiceOrderStatus, note?: string): Promise<ServiceOrder> {
     try {
-      // Verificar se o usuário é um desenvolvedor
-      const isDeveloper = await authService.isDeveloperUser()
-
-      if (isDeveloper) {
-        // Simular atualização para desenvolvedores
-        const mockOrder = await this.getServiceOrderById(id)
-        const updatedOrder = {
-          ...mockOrder,
-          status,
-          updatedAt: new Date().toISOString(),
-          notes: note ? [...(mockOrder.notes || []), note] : mockOrder.notes,
-        }
-
-        if (status === "completed") {
-          updatedOrder.completedAt = new Date().toISOString()
-        }
-
-        return updatedOrder
+      // Simular atualização para desenvolvimento
+      const mockOrder = await this.getServiceOrderById(id)
+      const updatedOrder = {
+        ...mockOrder,
+        status,
+        updatedAt: new Date().toISOString(),
+        notes: note ? [...(mockOrder.notes || []), note] : mockOrder.notes,
       }
 
-      // Atualizar ordem de serviço no Supabase
-      const order = await serviceOrderService.updateServiceOrder(id, status, note)
-      return order
+      if (status === "completed") {
+        updatedOrder.completedAt = new Date().toISOString()
+      }
+
+      return updatedOrder
     } catch (error) {
       console.error(`ServiceOrderService.updateServiceOrder error for ID ${id}:`, error)
       throw error
